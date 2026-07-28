@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_gds" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.gds</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="Connectivité GDS" name="api_gds">
+                    <block title="Paramètres d'authentification API GDS">
+                        <setting id="gds_environment_setting" string="Environnement GDS" help="Sélectionnez l'environnement cible pour les requêtes API">
+                            <field name="gds_environment" widget="radio"/>
+                        </setting>
+                        <setting id="gds_client_id_setting" string="Client ID" help="Identifiant client fourni par le GDS">
+                            <field name="gds_client_id"/>
+                        </setting>
+                        <setting id="gds_client_secret_setting" string="Client Secret" help="Clé secrète associée à votre compte API">
+                            <field name="gds_client_secret" password="True"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_api_gds_config" model="ir.actions.act_window">
+        <field name="name">Configuration GDS</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'api_gds'}</field>
+    </record>
+
+    <menuitem id="menu_gds_root" name="Voyages &amp; GDS" sequence="10"/>
+    <menuitem id="menu_gds_config" name="Configuration" parent="menu_gds_root" action="action_api_gds_config" sequence="100"/>
+
+</odoo>

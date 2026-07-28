@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+    volumes:
+      - testtechnique_odoo-db-data:/var/lib/postgresql/data
+
+  web:
+    image: odoo:18.0  
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    volumes:
+      - testtechnique_odoo-web-data:/var/lib/odoo
+      - ./custom_addons:/mnt/extra-addons
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+      - PGHOST=db
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+
+volumes:
+  testtechnique_odoo-db-data:
+    external: true
+  testtechnique_odoo-web-data:
+    external: true
+  
