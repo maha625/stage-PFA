@@ -8,7 +8,8 @@
         <field name="arch" type="xml">
             <xpath expr="//form" position="inside">
                 <app string="Connectivité GDS" name="api_gds">
-                    <block title="Paramètres d'authentification API GDS">
+                    <!-- Blocs d'authentification existants -->
+                    <block title="Paramètres d'authentification API GDS (OAuth2)">
                         <setting id="gds_environment_setting" string="Environnement GDS" help="Sélectionnez l'environnement cible pour les requêtes API">
                             <field name="gds_environment" widget="radio"/>
                         </setting>
@@ -17,6 +18,16 @@
                         </setting>
                         <setting id="gds_client_secret_setting" string="Client Secret" help="Clé secrète associée à votre compte API">
                             <field name="gds_client_secret" password="True"/>
+                        </setting>
+                    </block>
+
+                    <!-- Nouveau bloc pour Hotelbeds / Grossistes -->
+                    <block title="Paramètres Hotelbeds / Grossistes Hôteliers">
+                        <setting id="hotelbeds_api_key_setting" string="API Key" help="Clé API principale pour Hotelbeds">
+                            <field name="hotelbeds_api_key"/>
+                        </setting>
+                        <setting id="hotelbeds_shared_secret_setting" string="Shared Secret" help="Secret partagé pour la signature cryptographique SHA-256">
+                            <field name="hotelbeds_shared_secret" password="True"/>
                         </setting>
                     </block>
                 </app>

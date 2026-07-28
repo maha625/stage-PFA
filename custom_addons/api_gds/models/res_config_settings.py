@@ -17,3 +17,14 @@ class ResConfigSettings(models.TransientModel):
         string="Client Secret", 
         config_parameter='api_gds.client_secret'
     )
+
+    # Nouveaux champs pour Hotelbeds / Grossistes
+    hotelbeds_api_key = fields.Char(
+        string="API Key (Hotelbeds)", 
+        config_parameter='api_gds.hotelbeds_api_key'
+    )
+
+    hotelbeds_shared_secret = fields.Char(
+        string="Shared Secret (Hotelbeds)", 
+        config_parameter='api_gds.hotelbeds_shared_secret'
+    )
