@@ -7,7 +7,6 @@
     'depends': ['base', 'sale'],
     'data': [
         'security/ir.model.access.csv',
-        'views/hotel_connector_views.xml',  # <-- Ajoutez cette ligne ici
         'views/hotel_search_wizard_views.xml',  # <-- Ajoutez cette ligne ici
     ],
     'installable': True,

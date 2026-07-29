@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- 0. Menu Racine Principal (Indispensable pour éviter l'erreur) -->
+    <menuitem id="menu_hotel_root" 
+              name="Hôtels &amp; GDS" 
+              sequence="10"/>
+
     <!-- 1. Vue Liste -->
     <record id="view_hotel_search_wizard_tree" model="ir.ui.view">
         <field name="name">hotel.search.wizard.tree</field>
@@ -39,6 +44,7 @@
                             <field name="rooms"/>
                             <field name="adults"/>
                             <field name="children"/>
+                            <field name="child_age" invisible="children == 0"/>
                             <field name="max_hotels"/>
                         </group>
                     </group>
@@ -60,7 +66,7 @@
         <field name="target">current</field>
     </record>
 
-    <!-- 4. Menu -->
+    <!-- 4. Menu de recherche rattaché au menu racine -->
     <menuitem id="menu_hotel_search" 
               name="Recherche d'Hôtels" 
               parent="menu_hotel_root" 

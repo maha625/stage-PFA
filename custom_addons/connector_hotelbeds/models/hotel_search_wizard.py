@@ -18,6 +18,7 @@ class HotelSearchWizard(models.Model):
     rooms = fields.Integer(string='Chambres', default=1)
     adults = fields.Integer(string='Adultes', default=2)
     children = fields.Integer(string='Enfants', default=0)
+    child_age = fields.Integer(string='Âge de l\'enfant', default=8, help="Âge requis par Hotelbeds si des enfants voyagent.")
     
     max_hotels = fields.Integer(string='Limite max. d\'hôtels', default=10)
     search_results = fields.Html(string='Résultats des Offres', readonly=True)
@@ -45,12 +46,11 @@ class HotelSearchWizard(models.Model):
     def _resolve_destination_code(self, headers):
         """Interroge l'API de localisation Hotelbeds pour trouver le code de la ville si vide"""
         if self.destination_code:
-            return self.destination_code  # Si déjà rempli manuellement, on l'utilise
+            return self.destination_code
 
         if not self.city:
             raise UserError("Veuillez renseigner au moins une ville pour lancer la recherche.")
 
-        # API de localisation Hotelbeds
         url = f"https://api.test.hotelbeds.com/hotel-api/1.0/locations/destinations?codes={self.city.upper()}&from=1&to=5"
         
         try:
@@ -59,12 +59,10 @@ class HotelSearchWizard(models.Model):
                 data = response.json()
                 destinations = data.get('destinations', [])
                 if destinations:
-                    # On récupère automatiquement le premier code correspondant
                     return destinations[0].get('code')
         except Exception:
             pass
 
-        # Fallback intelligent si l'API de localisation directe ne renvoie rien ou par défaut pour le Maroc
         city_lower = (self.city or '').lower()
         mapping_secours = {
             'marrakech': 'RAK',
@@ -84,19 +82,28 @@ class HotelSearchWizard(models.Model):
         self.ensure_one()
         headers = self._get_api_headers()
         
-        # Automatisation du code destination selon la ville/pays saisis
         resolved_code = self._resolve_destination_code(headers)
         self.destination_code = resolved_code
 
         url = "https://api.test.hotelbeds.com/hotel-api/1.0/hotels"
 
+        # Construction dynamique des occupivités et des âges des enfants
         occupancies_list = []
         for _ in range(self.rooms):
+            paxes_list = []
+            if self.children > 0:
+                # Hotelbeds exige un élément "paxes" avec l'âge pour chaque enfant
+                for _c in range(self.children):
+                    paxes_list.append({
+                        "type": "CH",
+                        "age": self.child_age
+                    })
+
             occupancies_list.append({
                 "rooms": 1,
                 "adults": self.adults,
                 "children": self.children,
-                "paxes": []
+                "paxes": paxes_list
             })
 
         payload = {

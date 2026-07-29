@@ -1,3 +1,2 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_hotel_connector,hotel.connector,model_hotel_connector,base.group_user,1,1,1,1
 access_hotel_search_wizard,hotel.search.wizard,model_hotel_search_wizard,base.group_user,1,1,1,1
