@@ -7,6 +7,7 @@ from odoo.exceptions import UserError
 class HotelSearchWizard(models.Model):
     _name = 'hotel.search.wizard'
     _description = 'Assistant de Recherche Hôtelière Global'
+    _order = 'create_date desc'
 
     checkin_date = fields.Date(string='Date d\'Arrivée', required=True, default=fields.Date.context_today)
     checkout_date = fields.Date(string='Date de Départ', required=True)
@@ -23,8 +24,14 @@ class HotelSearchWizard(models.Model):
     max_hotels = fields.Integer(string='Limite max. d\'hôtels', default=10)
     search_results = fields.Html(string='Résultats des Offres', readonly=True)
 
+    @api.depends('city', 'destination_code', 'checkin_date')
+    def _compute_display_name(self):
+        for record in self:
+            dest = record.city or record.destination_code or 'Inconnue'
+            date_in = record.checkin_date or ''
+            record.display_name = f"Recherche {dest} ({date_in})"
+
     def _get_api_headers(self):
-        """Génère les headers sécurisés pour l'API Hotelbeds"""
         get_param = self.env['ir.config_parameter'].sudo().get_param
         api_key = (get_param('api_gds.hotelbeds_api_key') or '').strip()
         shared_secret = (get_param('api_gds.hotelbeds_shared_secret') or '').strip()
@@ -44,7 +51,6 @@ class HotelSearchWizard(models.Model):
         }
 
     def _resolve_destination_code(self, headers):
-        """Interroge l'API de localisation Hotelbeds pour trouver le code de la ville si vide"""
         if self.destination_code:
             return self.destination_code
 
@@ -80,6 +86,7 @@ class HotelSearchWizard(models.Model):
 
     def action_search_hotels(self):
         self.ensure_one()
+        self.flush_recordset()
         headers = self._get_api_headers()
         
         resolved_code = self._resolve_destination_code(headers)
@@ -87,12 +94,10 @@ class HotelSearchWizard(models.Model):
 
         url = "https://api.test.hotelbeds.com/hotel-api/1.0/hotels"
 
-        # Construction dynamique des occupivités et des âges des enfants
         occupancies_list = []
         for _ in range(self.rooms):
             paxes_list = []
             if self.children > 0:
-                # Hotelbeds exige un élément "paxes" avec l'âge pour chaque enfant
                 for _c in range(self.children):
                     paxes_list.append({
                         "type": "CH",

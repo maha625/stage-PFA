@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- 0. Menu Racine Principal (Indispensable pour éviter l'erreur) -->
+    <!-- 0. Menu Racine Principal -->
     <menuitem id="menu_hotel_root" 
-              name="Hôtels &amp; GDS" 
+              name="Hôtels" 
               sequence="10"/>
 
-    <!-- 1. Vue Liste -->
+    <!-- 1. Vue Liste (Historique des recherches) -->
     <record id="view_hotel_search_wizard_tree" model="ir.ui.view">
         <field name="name">hotel.search.wizard.tree</field>
         <field name="model">hotel.search.wizard</field>
         <field name="arch" type="xml">
             <list string="Historique des Recherches">
                 <field name="create_date"/>
+                <field name="city"/>
                 <field name="destination_code"/>
                 <field name="checkin_date"/>
                 <field name="checkout_date"/>
@@ -22,7 +23,7 @@
         </field>
     </record>
 
-    <!-- 2. Vue Formulaire avec Ville et Pays -->
+    <!-- 2. Vue Formulaire (Détails et résultats) -->
     <record id="view_hotel_search_wizard_form" model="ir.ui.view">
         <field name="name">hotel.search.wizard.form</field>
         <field name="model">hotel.search.wizard</field>
@@ -58,11 +59,11 @@
         </field>
     </record>
 
-    <!-- 3. Action -->
     <record id="action_hotel_search_wizard" model="ir.actions.act_window">
         <field name="name">Recherche Hôtels</field>
         <field name="res_model">hotel.search.wizard</field>
         <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_hotel_search_wizard_tree"/>
         <field name="target">current</field>
     </record>
 
