@@ -4,12 +4,9 @@
     'category': 'Sales/Travel',
     'summary': 'Réception de webhooks fournisseurs et synchronisation en temps réel',
     'description': """
-        Ce module permet de :
-        - Recevoir des webhooks externes (annulations de vol, changements d'horaires).
-        - Mettre à jour automatiquement les réservations.
-        - Alerter instantanément l'agent de voyage en temps réel.
-    """,
-    'author': 'Votre Nom',
+        Ce module permet de recevoir instantanément des événements fournisseurs (annulation de vol, changement d’horaire, confirmation de transfert) afin d'alerter automatiquement l'agent.
+        """,
+    'author': 'Maha El Allam',
     'depends': ['base', 'base_automation', 'mail'],
     'data': [
         'security/ir.model.access.csv',

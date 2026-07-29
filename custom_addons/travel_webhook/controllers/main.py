@@ -1,30 +1,50 @@
 from odoo import http
 from odoo.http import request
 
-class SaleOrderWebhookController(http.Controller):
+class TravelWebhookController(http.Controller):
 
     @http.route('/api/v1/webhook/purchase', type='json', auth='public', methods=['POST'], csrf=False)
-    def receive_sale_webhook(self, order_ref=None, event_type=None, details='', **kwargs):
+    def receive_purchase_webhook(self, **kwargs):
+        params = request.params
         
-        # Si order_ref n'est pas capturé directement, on essaie de le lire depuis request.params
-        if not order_ref:
-            params = request.params
-            order_ref = params.get('order_ref')
-            event_type = params.get('event_type')
-            details = params.get('details', '')
+        # Récupération des paramètres envoyés depuis l'extérieur (Postman, etc.)
+        doc_type = params.get('doc_type', 'sale.order')
+        doc_ref = params.get('doc_ref') or params.get('order_ref')
+        action = params.get('action', 'update')
+        details = params.get('details', '')
 
-        if not order_ref:
-            return {"status": "error", "message": "Aucun order_ref reçu dans la requête."}
+        if not doc_ref:
+            return {"status": "error", "message": "Référence du document manquante (doc_ref ou order_ref)."}
 
-        # Recherche de la commande de vente
-        sale_order = request.env['sale.order'].sudo().search([('name', '=', str(order_ref))], limit=1)
-        
-        if not sale_order:
-            return {"status": "error", "message": f"Devis introuvable pour la valeur : '{order_ref}'"}
+        # Modèles autorisés dans Odoo (adaptés à votre contexte)
+        allowed_models = {
+            'sale.order': 'Devis / Commande client',
+            'purchase.order': 'Commande fournisseur',
+            'account.move': 'Facture',
+        }
 
-        # Si trouvé, on ajoute le message dans le Chatter
-        sale_order.message_post(
-            body=f"<b>Alerte Fournisseur :</b> Le fournisseur a refusé. Détails : {details} (Événement : {event_type})"
-        )
+        if doc_type not in allowed_models:
+            return {"status": "error", "message": f"Type de document '{doc_type}' non géré."}
 
-        return {"status": "success", "message": f"Devis {order_ref} mis à jour avec succès."}
+        # 1. Recherche dynamique du document dans Odoo
+        record = request.env[doc_type].sudo().search([('name', '=', str(doc_ref))], limit=1)
+
+        if not record:
+            return {"status": "error", "message": f"Document '{doc_ref}' introuvable dans le modèle {doc_type}."}
+
+        # 2. Traitement des actions basées sur les événements fournisseurs
+        if action in ['flight_cancellation', 'cancel']:
+            if hasattr(record, 'action_cancel'):
+                record.action_cancel()
+            message = f"🚨 Annulation Fournisseur : {details}"
+        elif action == 'schedule_change':
+            message = f"⏰ Changement d'horaire Fournisseur : {details}"
+        elif action == 'transfer_confirmed':
+            message = f"✅ Confirmation de transfert : {details}"
+        else:
+            message = f"ℹ️ Mise à jour Fournisseur : {details}"
+
+        # 3. Publication automatique dans le Chatter du document
+        record.message_post(body=message)
+
+        return {"status": "success", "message": f"Le document {doc_ref} a été mis à jour avec succès."}
