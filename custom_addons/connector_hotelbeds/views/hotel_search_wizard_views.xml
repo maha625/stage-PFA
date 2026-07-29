@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- 0. Menu Racine Principal -->
+    <!-- 0. Menu Racine Principal "Hôtels" -->
     <menuitem id="menu_hotel_root" 
               name="Hôtels" 
               sequence="10"/>
@@ -59,19 +59,35 @@
         </field>
     </record>
 
+    <!-- 3. Action de la fenêtre pour la liste des recherches -->
     <record id="action_hotel_search_wizard" model="ir.actions.act_window">
-        <field name="name">Recherche Hôtels</field>
+        <field name="name">Recherche d'Hôtels</field>
         <field name="res_model">hotel.search.wizard</field>
         <field name="view_mode">list,form</field>
-        <field name="view_id" ref="view_hotel_search_wizard_tree"/>
         <field name="target">current</field>
     </record>
 
-    <!-- 4. Menu de recherche rattaché au menu racine -->
+    <!-- 4. Menu pour accéder à la liste des recherches -->
     <menuitem id="menu_hotel_search" 
               name="Recherche d'Hôtels" 
               parent="menu_hotel_root" 
               action="action_hotel_search_wizard" 
               sequence="15"/>
+
+    <!-- 5. Action pour les paramètres de configuration GDS -->
+    <record id="action_api_gds_config" model="ir.actions.act_window">
+        <field name="name">Configuration GDS</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'api_gds'}</field>
+    </record>
+
+    <!-- 6. Menu de configuration rattaché au menu "Hôtels" -->
+    <menuitem id="menu_gds_config" 
+              name="Configuration" 
+              parent="menu_hotel_root" 
+              action="action_api_gds_config" 
+              sequence="100"/>
 
 </odoo>
