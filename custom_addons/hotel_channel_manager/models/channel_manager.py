@@ -9,7 +9,12 @@ class HotelChannelManager(models.Model):
     _name = 'hotel.channel.manager'
     _description = 'Gestionnaire de Connexion Channel Manager'
 
-    name = fields.Char(string='Nom du Canal', required=True, help="Ex: SiteMinder, D-EDGE")
+    name = fields.Selection([
+        ('siteminder', 'SiteMinder'),
+        ('yieldplanet', 'YieldPlanet'),
+        ('dedge', 'D-EDGE')
+    ], string='Nom du Canal', required=True, default='siteminder')
+
     api_url = fields.Char(string='URL de l\'API Endpoint', required=True)
     api_token = fields.Char(string='Clé API / Token Bearer', required=True)
     hotel_id = fields.Char(string='ID de l\'Hôtel chez le Partenaire', required=True)
@@ -19,11 +24,16 @@ class HotelChannelManager(models.Model):
         ('inactive', 'Inactif')
     ], string='Statut', default='draft')
 
+    def action_set_active(self):
+            self.write({'state': 'active'})
+    
+    def action_set_inactive(self):
+        self.write({'state': 'inactive'})
+
+    def action_set_draft(self):
+        self.write({'state': 'draft'})
+
     def action_push_availability_rates(self, inventory_data):
-        """
-        Méthode Push : Envoie les mises à jour de prix et de disponibilités 
-        vers le Channel Manager externe via API REST.
-        """
         self.ensure_one()
         headers = {
             'Authorization': f'Bearer {self.api_token}',
@@ -37,8 +47,9 @@ class HotelChannelManager(models.Model):
                 _logger.info("Synchronisation Channel Manager réussie.")
                 return True
             else:
-                _logger.error(f"Erreur API Channel Manager: {response.text}")
+                _logger.error("Erreur API Channel Manager: %s", response.text)
                 raise UserError(f"Échec de la synchronisation: {response.reason}")
         except requests.exceptions.RequestException as e:
-            _logger.error(f"Erreur de connexion au Channel Manager: {e}")
+            _logger.error("Erreur de connexion au Channel Manager: %s", e)
             raise UserError("Impossible de joindre le serveur du Channel Manager.")
+    

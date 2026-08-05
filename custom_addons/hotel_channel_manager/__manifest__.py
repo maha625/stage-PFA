@@ -12,6 +12,7 @@
     'depends': ['base'],
     'data': [
         'security/ir.model.access.csv',
+        'views/hotel_channel_manager_views.xml',
     ],
     'installable': True,
     'application': True,
