@@ -30,6 +30,11 @@
                             <field name="hotelbeds_shared_secret" password="True"/>
                         </setting>
                     </block>
+                    <block title="Paramètres API Ninjas (Recherche d'Aéroports)">
+                        <setting id="api_ninjas_key_setting" string="API Key (API Ninjas)" help="Clé API pour la recherche d'aéroports">
+                            <field name="api_ninjas_key" password="True"/>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>
@@ -43,7 +48,6 @@
         <field name="context">{'module' : 'api_gds'}</field>
     </record>
 
-    <menuitem id="menu_gds_root" name="Voyages &amp; GDS" sequence="10"/>
     <menuitem id="menu_gds_config" name="Configuration" parent="menu_gds_root" action="action_api_gds_config" sequence="100"/>
 
 </odoo>

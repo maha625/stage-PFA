@@ -28,3 +28,9 @@ class ResConfigSettings(models.TransientModel):
         string="Shared Secret (Hotelbeds)", 
         config_parameter='api_gds.hotelbeds_shared_secret'
     )
+
+    api_ninjas_key = fields.Char(
+        string="API Key (API Ninjas)", 
+        config_parameter='api_gds.api_ninjas_key',
+        help="Clé API utilisée pour la recherche d'aéroports externes"
+    )

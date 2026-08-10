@@ -50,4 +50,5 @@
               name="Channel Manager" 
               action="action_hotel_channel_manager" 
               sequence="10"/>
+    
 </odoo>

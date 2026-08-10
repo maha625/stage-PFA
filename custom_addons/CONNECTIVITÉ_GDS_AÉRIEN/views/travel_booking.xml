@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ========================================== -->
+    <!-- VUES POUR LE RÉFÉRENTIEL DES AÉROPORTS      -->
+    <!-- ========================================== -->
+
+    <record id="view_res_airport_city_list" model="ir.ui.view">
+        <field name="name">res.airport.city.list</field>
+        <field name="model">res.airport.city</field>
+        <field name="arch" type="xml">
+            <list string="Référentiel Aéroports">
+                <field name="city_name"/>
+                <field name="airport_name"/>
+                <field name="iata_code"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_res_airport_city_form" model="ir.ui.view">
+        <field name="name">res.airport.city.form</field>
+        <field name="model">res.airport.city</field>
+        <field name="arch" type="xml">
+            <form string="Aéroport &amp; Ville">
+                <sheet>
+                    <group>
+                        <field name="city_name" placeholder="Ex: Paris"/>
+                        <field name="airport_name" placeholder="Ex: Charles de Gaulle"/>
+                        <field name="iata_code" placeholder="Ex: CDG" size="3"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_res_airport_city" model="ir.actions.act_window">
+        <field name="name">Aéroports &amp; Villes</field>
+        <field name="res_model">res.airport.city</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ========================================== -->
+    <!-- VUES POUR LE RÉFÉRENTIEL DES COMPAGNIES    -->
+    <!-- ========================================== -->
+
+    <record id="view_res_airline_list" model="ir.ui.view">
+        <field name="name">res.airline.list</field>
+        <field name="model">res.airline</field>
+        <field name="arch" type="xml">
+            <list string="Référentiel Compagnies Aériennes">
+                <field name="airline_name"/>
+                <field name="iata_code"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_res_airline_form" model="ir.ui.view">
+        <field name="name">res.airline.form</field>
+        <field name="model">res.airline</field>
+        <field name="arch" type="xml">
+            <form string="Compagnie Aérienne">
+                <sheet>
+                    <group>
+                        <field name="airline_name" placeholder="Ex: Royal Air Maroc"/>
+                        <field name="iata_code" placeholder="Ex: AT" size="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_res_airline" model="ir.actions.act_window">
+        <field name="name">Compagnies Aériennes</field>
+        <field name="res_model">res.airline</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ========================================== -->
+    <!-- VUES POUR LES DOSSIERS DE RÉSERVATION PNR  -->
+    <!-- ========================================== -->
+
+    <record id="view_travel_booking_list" model="ir.ui.view">
+        <field name="name">travel.booking.list</field>
+        <field name="model">travel.booking</field>
+        <field name="arch" type="xml">
+            <list string="Dossiers PNR">
+                <field name="name"/>
+                <field name="type_api"/>
+                <field name="origin_code"/>
+                <field name="destination_code"/>
+                <field name="state" widget="badge" decoration-success="state == 'confirmed'" decoration-info="state == 'draft'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_travel_booking_form" model="ir.ui.view">
+        <field name="name">travel.booking.form</field>
+        <field name="model">travel.booking</field>
+        <field name="arch" type="xml">
+            <form string="Réservation de Voyage GDS">
+                <header>
+                    <button name="action_realtime_flight_search" string="Rechercher Vols (Temps Réel)" type="object" class="oe_highlight"/>
+                    <button name="action_fetch_pnr" string="Extraire PNR GDS" type="object" class="oe_highlight"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Configuration de l'API">
+                            <field name="type_api"/>
+                            <field name="pnr_code"/>
+                        </group>
+                        
+                        <group string="Paramètres de Recherche &amp; Passagers">
+                            <field name="trip_type"/>
+                            <field name="adults"/>
+                            <field name="children"/>
+                            <field name="infants"/>
+                            <field name="cabin_class"/>
+                        </group>
+                    </group>
+
+                    <group string="Itinéraire &amp; Dates">
+                        <group>
+                            <field name="origin_airport_id"/>
+                            <field name="destination_airport_id"/>
+                            <field name="preferred_airline_id" options="{'no_create': True}" placeholder="Laisser vide pour toutes les compagnies"/>                        </group>
+                        <group>
+                            <field name="departure_date"/>
+                            <field name="return_date"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Réponse Technique API (JSON)">
+                            <field name="flight_details" widget="text" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_travel_booking" model="ir.actions.act_window">
+        <field name="name">Dossiers GDS</field>
+        <field name="res_model">travel.booking</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Action pour la Configuration GDS -->
+    <record id="action_api_gds_config" model="ir.actions.act_window">
+        <field name="name">Configuration GDS</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'api_gds'}</field>
+    </record>
+
+    <!-- ========================================== -->
+    <!-- STRUCTURE DES MENUS                        -->
+    <!-- ========================================== -->
+
+    <!-- Menu Principal unique -->
+    <menuitem id="menu_gds_root" name="Voyages &amp; GDS" sequence="10"/>
+
+    <!-- Sous-menus rattachés au menu principal -->
+    <menuitem id="menu_travel_booking_action" name="Dossiers PNR" parent="menu_gds_root" action="action_travel_booking" sequence="10"/>
+    <menuitem id="menu_res_airport_city_action" name="Référentiel Aéroports" parent="menu_gds_root" action="action_res_airport_city" sequence="20"/>
+    <menuitem id="menu_res_airline_action" name="Compagnies Aériennes" parent="menu_gds_root" action="action_res_airline" sequence="30"/>
+    <menuitem id="menu_gds_config" name="Configuration" parent="menu_gds_root" action="action_api_gds_config" sequence="100"/>
+
+</odoo>

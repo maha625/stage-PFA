@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_travel_booking_user,travel.booking.user,model_travel_booking,base.group_user,1,1,1,1
+access_res_airport_city_user,res.airport.city.user,model_res_airport_city,base.group_user,1,1,1,1
+access_res_airline_user,res.airline.user,model_res_airline,base.group_user,1,1,1,1
