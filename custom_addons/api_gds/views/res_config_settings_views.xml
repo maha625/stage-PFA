@@ -8,20 +8,47 @@
         <field name="arch" type="xml">
             <xpath expr="//form" position="inside">
                 <app string="Connectivité GDS" name="api_gds">
-                    <!-- Blocs d'authentification existants -->
-                    <block title="Paramètres d'authentification API GDS (OAuth2)">
-                        <setting id="gds_environment_setting" string="Environnement GDS" help="Sélectionnez l'environnement cible pour les requêtes API">
-                            <field name="gds_environment" widget="radio"/>
+                    
+                    <!-- Paramètres Amadeus -->
+                    <block title="Paramètres API Amadeus">
+                        <setting id="amadeus_environment_setting" string="Environnement Amadeus" help="Sélectionnez l'environnement cible pour Amadeus">
+                            <field name="amadeus_environment" widget="radio"/>
                         </setting>
-                        <setting id="gds_client_id_setting" string="Client ID" help="Identifiant client fourni par le GDS">
-                            <field name="gds_client_id"/>
+                        <setting id="amadeus_client_id_setting" string="Client ID (Amadeus)" help="Identifiant client Amadeus">
+                            <field name="amadeus_client_id"/>
                         </setting>
-                        <setting id="gds_client_secret_setting" string="Client Secret" help="Clé secrète associée à votre compte API">
-                            <field name="gds_client_secret" password="True"/>
+                        <setting id="amadeus_client_secret_setting" string="Client Secret (Amadeus)" help="Clé secrète Amadeus">
+                            <field name="amadeus_client_secret" password="True"/>
                         </setting>
                     </block>
 
-                    <!-- Nouveau bloc pour Hotelbeds / Grossistes -->
+                    <!-- Paramètres Sabre -->
+                    <block title="Paramètres API Sabre">
+                        <setting id="sabre_environment_setting" string="Environnement Sabre" help="Sélectionnez l'environnement cible pour Sabre">
+                            <field name="sabre_environment" widget="radio"/>
+                        </setting>
+                        <setting id="sabre_client_id_setting" string="Client ID / Username (Sabre)" help="Identifiant client Sabre">
+                            <field name="sabre_client_id"/>
+                        </setting>
+                        <setting id="sabre_client_secret_setting" string="Client Secret / Password (Sabre)" help="Clé secrète Sabre">
+                            <field name="sabre_client_secret" password="True"/>
+                        </setting>
+                    </block>
+
+                    <!-- Paramètres Galileo -->
+                    <block title="Paramètres API Galileo (Travelport)">
+                        <setting id="galileo_environment_setting" string="Environnement Galileo" help="Sélectionnez l'environnement cible pour Galileo">
+                            <field name="galileo_environment" widget="radio"/>
+                        </setting>
+                        <setting id="galileo_client_id_setting" string="API Key / Username (Galileo)" help="Identifiant client Galileo">
+                            <field name="galileo_client_id"/>
+                        </setting>
+                        <setting id="galileo_client_secret_setting" string="API Secret / Password (Galileo)" help="Clé secrète Galileo">
+                            <field name="galileo_client_secret" password="True"/>
+                        </setting>
+                    </block>
+
+                    <!-- Autres paramètres -->
                     <block title="Paramètres Hotelbeds / Grossistes Hôteliers">
                         <setting id="hotelbeds_api_key_setting" string="API Key" help="Clé API principale pour Hotelbeds">
                             <field name="hotelbeds_api_key"/>
@@ -30,6 +57,7 @@
                             <field name="hotelbeds_shared_secret" password="True"/>
                         </setting>
                     </block>
+                    
                     <block title="Paramètres API Ninjas (Recherche d'Aéroports)">
                         <setting id="api_ninjas_key_setting" string="API Key (API Ninjas)" help="Clé API pour la recherche d'aéroports">
                             <field name="api_ninjas_key" password="True"/>
@@ -48,6 +76,9 @@
         <field name="context">{'module' : 'api_gds'}</field>
     </record>
 
+
+
+    <!-- Lien vers le menu de configuration sous la racine -->
     <menuitem id="menu_gds_config" name="Configuration" parent="menu_gds_root" action="action_api_gds_config" sequence="100"/>
 
 </odoo>

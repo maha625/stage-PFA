@@ -3,31 +3,36 @@ from odoo import fields, models
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
-    gds_environment = fields.Selection([
+    # --- Amadeus ---
+    amadeus_environment = fields.Selection([
         ('test', 'Test / Sandbox'),
         ('production', 'Production')
-    ], string="Environnement GDS", default='test', config_parameter='api_gds.environment')
+    ], string="Environnement Amadeus", default='test', config_parameter='api_gds.amadeus_environment')
     
-    gds_client_id = fields.Char(
-        string="Client ID", 
-        config_parameter='api_gds.client_id'
-    )
+    amadeus_client_id = fields.Char(string="Client ID (Amadeus)", config_parameter='api_gds.amadeus_client_id')
+    amadeus_client_secret = fields.Char(string="Client Secret (Amadeus)", config_parameter='api_gds.amadeus_client_secret')
+
+    # --- Sabre ---
+    sabre_environment = fields.Selection([
+        ('test', 'Test / Sandbox'),
+        ('production', 'Production')
+    ], string="Environnement Sabre", default='test', config_parameter='api_gds.sabre_environment')
     
-    gds_client_secret = fields.Char(
-        string="Client Secret", 
-        config_parameter='api_gds.client_secret'
-    )
+    sabre_client_id = fields.Char(string="Client ID (Sabre)", config_parameter='api_gds.sabre_client_id')
+    sabre_client_secret = fields.Char(string="Client Secret (Sabre)", config_parameter='api_gds.sabre_client_secret')
 
-    # Nouveaux champs pour Hotelbeds / Grossistes
-    hotelbeds_api_key = fields.Char(
-        string="API Key (Hotelbeds)", 
-        config_parameter='api_gds.hotelbeds_api_key'
-    )
+    # --- Galileo ---
+    galileo_environment = fields.Selection([
+        ('test', 'Test / Sandbox'),
+        ('production', 'Production')
+    ], string="Environnement Galileo", default='test', config_parameter='api_gds.galileo_environment')
+    
+    galileo_client_id = fields.Char(string="Client ID (Galileo)", config_parameter='api_gds.galileo_client_id')
+    galileo_client_secret = fields.Char(string="Client Secret (Galileo)", config_parameter='api_gds.galileo_client_secret')
 
-    hotelbeds_shared_secret = fields.Char(
-        string="Shared Secret (Hotelbeds)", 
-        config_parameter='api_gds.hotelbeds_shared_secret'
-    )
+    # --- Hotelbeds & Autres ---
+    hotelbeds_api_key = fields.Char(string="API Key (Hotelbeds)", config_parameter='api_gds.hotelbeds_api_key')
+    hotelbeds_shared_secret = fields.Char(string="Shared Secret (Hotelbeds)", config_parameter='api_gds.hotelbeds_shared_secret')
 
     api_ninjas_key = fields.Char(
         string="API Key (API Ninjas)", 

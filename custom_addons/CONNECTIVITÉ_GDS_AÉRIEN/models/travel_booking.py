@@ -1,35 +1,8 @@
-import requests
 import logging
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
-
-class GdsApiService(models.AbstractModel):
-    _name = 'gds.api.service'
-    _description = 'Service technique centralisé pour les requêtes GDS'
-
-    @api.model
-    def get_auth_token(self):
-        get_param = self.env['ir.config_parameter'].sudo().get_param
-        environment = get_param('api_gds.environment', 'test')
-        client_id = get_param('api_gds.client_id')
-        client_secret = get_param('api_gds.client_secret')
-
-        if not client_id or not client_secret:
-            raise UserError("Les identifiants API GDS (Client ID / Client Secret) ne sont pas configurés.")
-
-        auth_url = "https://api.amadeus.com/v1/security/oauth2/token" if environment == 'production' else "https://test.api.amadeus.com/v1/security/oauth2/token"
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        payload = {'grant_type': 'client_credentials', 'client_id': client_id, 'client_secret': client_secret}
-
-        try:
-            response = requests.post(auth_url, headers=headers, data=payload, timeout=10)
-            response.raise_for_status()
-            return response.json().get('access_token')
-        except requests.exceptions.RequestException as e:
-            raise UserError(f"Échec de l'authentification OAuth2 : {str(e)}")
-
 
 class ResAirportCity(models.Model):
     _name = 'res.airport.city'
@@ -67,23 +40,25 @@ class TravelBooking(models.Model):
     _description = 'Dossier de Réservation GDS'
 
     name = fields.Char(string='Référence', readonly=True, default='Nouveau')
-    type_api = fields.Selection([('amadeus', 'Amadeus'), ('sabre', 'Sabre')], default='amadeus')
+    type_api = fields.Selection([
+        ('amadeus', 'Amadeus'), 
+        ('sabre', 'Sabre'),
+        ('galileo', 'Galileo')
+    ], string='Fournisseur GDS', default='amadeus', required=True)
+    
     pnr_code = fields.Char(string='Code PNR')
     
-    # --- CHAMP ÉTAT (STATE) ---
     state = fields.Selection([
         ('draft', 'Brouillon'),
         ('confirmed', 'Confirmé')
     ], string='État', default='draft', tracking=True)
 
-    # --- SECTION DÉPART & ARRIVÉE ---
     origin_airport_id = fields.Many2one('res.airport.city', string='Départ (Aéroport)', required=True)
     origin_code = fields.Char(string='IATA Départ', related='origin_airport_id.iata_code', store=True, readonly=True)
 
     destination_airport_id = fields.Many2one('res.airport.city', string='Arrivée (Aéroport)', required=True)
     destination_code = fields.Char(string='IATA Arrivée', related='destination_airport_id.iata_code', store=True, readonly=True)
 
-    # --- CHAMPS COMPLÉMENTAIRES DE RECHERCHE ---
     trip_type = fields.Selection([
         ('one_way', 'Aller simple'),
         ('round_trip', 'Aller-retour')
@@ -119,56 +94,27 @@ class TravelBooking(models.Model):
         if not self.pnr_code:
             raise UserError("Veuillez saisir un code PNR.")
 
-        access_token = self.env['gds.api.service'].get_auth_token()
-        base_url = "https://test.api.amadeus.com" 
-        endpoint = f"{base_url}/v2/booking/flight-orders/{self.pnr_code}"
-        
-        try:
-            response = requests.get(endpoint, headers={'Authorization': f'Bearer {access_token}'}, timeout=10)
-            if response.status_code == 200:
-                self.flight_details = response.text
-                self.state = 'confirmed'
-            else:
-                raise UserError(f"Erreur GDS : {response.text}")
-        except Exception as e:
-            raise UserError(f"Erreur réseau : {str(e)}")
+        # Routage PNR selon l'API sélectionnée
+        if self.type_api == 'amadeus':
+            return self.env['gds.amadeus.service'].fetch_pnr(self)
+        elif self.type_api == 'sabre':
+            return self.env['gds.sabre.service'].fetch_pnr(self)
+        elif self.type_api == 'galileo':
+            return self.env['gds.galileo.service'].fetch_pnr(self)
+        else:
+            raise UserError("Fournisseur GDS non pris en charge.")
 
     def action_realtime_flight_search(self):
         self.ensure_one()
         if not self.origin_code or not self.destination_code:
             raise UserError("Les codes IATA de départ et d'arrivée sont requis.")
 
-        access_token = self.env['gds.api.service'].get_auth_token()
-        base_url = "https://test.api.amadeus.com"
-        endpoint = f"{base_url}/v2/shopping/flight-offers"
-        
-        params = {
-            'originLocationCode': self.origin_code,
-            'destinationLocationCode': self.destination_code,
-            'departureDate': str(self.departure_date),
-            'adults': self.adults,
-        }
-
-        if self.children and self.children > 0:
-            params['children'] = self.children
-        if self.infants and self.infants > 0:
-            params['infants'] = self.infants
-
-        if self.trip_type == 'round_trip' and self.return_date:
-            params['returnDate'] = str(self.return_date)
-
-        if self.cabin_class:
-            params['travelClass'] = self.cabin_class
-
-        # Si une compagnie spécifique est choisie, on l'ajoute. Si le champ est vide, l'API cherchera sur toutes les compagnies.
-        if self.preferred_airline_code:
-            params['includedAirlineCodes'] = self.preferred_airline_code
-
-        try:
-            response = requests.get(endpoint, headers={'Authorization': f'Bearer {access_token}'}, params=params, timeout=10)
-            if response.status_code == 200:
-                self.flight_details = response.text
-            else:
-                raise UserError(f"Erreur API : {response.text}")
-        except Exception as e:
-            raise UserError(f"Erreur réseau : {str(e)}")
+        # Routage dynamique vers le service GDS sélectionné
+        if self.type_api == 'amadeus':
+            return self.env['gds.amadeus.service'].search_flights(self)
+        elif self.type_api == 'sabre':
+            return self.env['gds.sabre.service'].search_flights(self)
+        elif self.type_api == 'galileo':
+            return self.env['gds.galileo.service'].search_flights(self)
+        else:
+            raise UserError("Fournisseur GDS non pris en charge.")
