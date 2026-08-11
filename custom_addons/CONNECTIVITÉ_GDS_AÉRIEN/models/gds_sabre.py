@@ -1,9 +1,10 @@
-import requests
 import base64
 import json
 import logging
 
-from odoo import models, api
+import requests
+
+from odoo import api, models
 from odoo.exceptions import UserError
 
 
@@ -12,127 +13,33 @@ _logger = logging.getLogger(__name__)
 
 class GdsSabreService(models.AbstractModel):
 
-    _name = 'gds.sabre.service'
-    _description = 'Service technique Sabre'
+    _name = "gds.sabre.service"
+    _description = "Service technique Sabre"
 
     # ============================================================
-    # DEBUG RÉPONSE SABRE
-    # ============================================================
-
-    @api.model
-    def _log_sabre_response(
-        self,
-        response,
-        title="RÉPONSE SABRE"
-    ):
-
-        _logger.warning("")
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning(
-            "                  %s",
-            title
-        )
-        _logger.warning(
-            "============================================================"
-        )
-
-        _logger.warning(
-            "HTTP Status : %s",
-            response.status_code
-        )
-
-        _logger.warning(
-            "Reason      : %s",
-            response.reason
-        )
-
-        _logger.warning(
-            "URL finale  : %s",
-            response.url
-        )
-
-        _logger.warning("")
-        _logger.warning(
-            "Contenu brut retourné par Sabre :"
-        )
-
-        if response.text:
-            _logger.warning(
-                "%s",
-                response.text
-            )
-        else:
-            _logger.warning(
-                "(Réponse vide)"
-            )
-
-        try:
-
-            json_data = response.json()
-
-            _logger.warning("")
-            _logger.warning(
-                "JSON retourné par Sabre :"
-            )
-
-            _logger.warning(
-                "%s",
-                json.dumps(
-                    json_data,
-                    indent=4,
-                    ensure_ascii=False
-                )
-            )
-
-        except ValueError:
-
-            _logger.warning(
-                "La réponse Sabre n'est pas un JSON valide."
-            )
-
-        _logger.warning("")
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning(
-            "                    FIN RÉPONSE SABRE"
-        )
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning("")
-
-    # ============================================================
-    # AUTHENTIFICATION SABRE
+    # CONFIGURATION SABRE
     # ============================================================
 
     @api.model
-    def get_auth_token(self):
-
+    def _get_sabre_config(self):
         get_param = (
-            self.env['ir.config_parameter']
+            self.env["ir.config_parameter"]
             .sudo()
             .get_param
         )
 
         environment = get_param(
-            'api_gds.sabre_environment',
-            'test'
+            "api_gds.sabre_environment",
+            "test",
         )
 
         client_id = get_param(
-            'api_gds.sabre_client_id'
+            "api_gds.sabre_client_id"
         )
 
         client_secret = get_param(
-            'api_gds.sabre_client_secret'
+            "api_gds.sabre_client_secret"
         )
-
-        # ========================================================
-        # VALIDATION
-        # ========================================================
 
         if not client_id:
             raise UserError(
@@ -144,62 +51,81 @@ class GdsSabreService(models.AbstractModel):
                 "Le Client Secret Sabre n'est pas configuré."
             )
 
-        # ========================================================
-        # NETTOYAGE
-        # ========================================================
-
         client_id = str(client_id).strip()
         client_secret = str(client_secret).strip()
 
-        # ========================================================
-        # URL AUTHENTIFICATION
-        # ========================================================
-
-        if environment == 'production':
-
-            auth_url = (
+        if environment == "production":
+            base_url = (
                 "https://api.platform.sabre.com"
-                "/v2/auth/token"
             )
-
         else:
-
-            auth_url = (
+            base_url = (
                 "https://api.cert.platform.sabre.com"
-                "/v2/auth/token"
             )
 
-        # ========================================================
-        # CONSTRUCTION BASIC AUTH
-        #
-        # Sabre utilise :
-        #
-        # Base64(
-        #     Base64(client_id)
-        #     :
-        #     Base64(client_secret)
-        # )
-        # ========================================================
+        return {
+            "environment": environment,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "base_url": base_url,
+        }
 
-        client_id_b64 = base64.b64encode(
-            client_id.encode("utf-8")
-        ).decode("ascii")
+    # ============================================================
+    # CONVERSION FLOAT
+    # ============================================================
 
-        client_secret_b64 = base64.b64encode(
-            client_secret.encode("utf-8")
-        ).decode("ascii")
+    @api.model
+    def _to_float(self, value):
+
+        try:
+            return float(value or 0)
+
+        except (TypeError, ValueError):
+            return 0.0
+
+    # ============================================================
+    # AUTHENTIFICATION
+    # ============================================================
+
+    @api.model
+    def get_auth_token(self):
+
+        config = self._get_sabre_config()
+
+        client_id = config["client_id"]
+        client_secret = config["client_secret"]
+        base_url = config["base_url"]
+
+        auth_url = (
+            f"{base_url}/v2/auth/token"
+        )
+
+        # Sabre utilise les valeurs encodées
+        # dans les credentials Basic Auth.
+        client_id_b64 = (
+            base64.b64encode(
+                client_id.encode("utf-8")
+            )
+            .decode("ascii")
+        )
+
+        client_secret_b64 = (
+            base64.b64encode(
+                client_secret.encode("utf-8")
+            )
+            .decode("ascii")
+        )
 
         credentials = (
             f"{client_id_b64}:{client_secret_b64}"
         )
 
-        basic_credentials = base64.b64encode(
-            credentials.encode("ascii")
-        ).decode("ascii")
-
-        # ========================================================
-        # HEADERS
-        # ========================================================
+        basic_credentials = (
+            base64.b64encode(
+                credentials.encode("ascii")
+            )
+            .decode("ascii")
+        )
 
         headers = {
             "Authorization": (
@@ -215,245 +141,69 @@ class GdsSabreService(models.AbstractModel):
             "grant_type": "client_credentials"
         }
 
-        # ========================================================
-        # LOG DEBUG
-        # ========================================================
-
-        _logger.warning("")
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning(
-            "              AUTHENTIFICATION SABRE"
-        )
-        _logger.warning(
-            "============================================================"
-        )
-
-        _logger.warning(
-            "Environnement : %s",
-            environment
-        )
-
-        _logger.warning(
-            "URL OAuth : %s",
-            auth_url
-        )
-
-        _logger.warning(
-            "Client ID présent : %s",
-            bool(client_id)
-        )
-
-        _logger.warning(
-            "Client Secret présent : %s",
-            bool(client_secret)
-        )
-
-        # NE JAMAIS afficher les credentials
-        _logger.warning(
-            "Longueur Client ID : %s",
-            len(client_id)
-        )
-
-        _logger.warning(
-            "Longueur Client Secret : %s",
-            len(client_secret)
-        )
-
-        _logger.warning(
-            "Client ID commence par : %s",
-            client_id[:4] if len(client_id) >= 4 else "***"
-        )
-
-        _logger.warning(
-            "Client Secret commence par : %s",
-            client_secret[:4] if len(client_secret) >= 4 else "***"
-        )
-
-        _logger.warning(
-            "Grant type : %s",
-            payload["grant_type"]
-        )
-
-        _logger.warning(
-            "============================================================"
-        )
-
-        # ========================================================
-        # APPEL OAUTH
-        # ========================================================
-
         try:
-
             response = requests.post(
                 auth_url,
                 headers=headers,
                 data=payload,
-                timeout=30
+                timeout=30,
             )
 
-        except requests.exceptions.RequestException as e:
-
+        except requests.exceptions.RequestException as error:
             _logger.exception(
-                "Erreur réseau pendant l'authentification Sabre"
+                "Erreur réseau pendant "
+                "l'authentification Sabre."
             )
 
             raise UserError(
                 "Impossible de contacter Sabre : "
-                f"{str(e)}"
+                f"{error}"
             )
-
-        # ========================================================
-        # LOG RÉPONSE
-        # ========================================================
-
-        self._log_sabre_response(
-            response,
-            "RÉPONSE AUTHENTIFICATION SABRE"
-        )
-
-        # ========================================================
-        # ERREUR HTTP
-        # ========================================================
 
         if response.status_code != 200:
 
             _logger.error(
-                "Authentification Sabre échouée."
+                "Authentification Sabre échouée "
+                "(HTTP %s).",
+                response.status_code,
             )
 
-            _logger.error(
-                "HTTP Status : %s",
-                response.status_code
-            )
-
-            _logger.error(
-                "Réponse Sabre : %s",
-                response.text
-            )
-
-            # ----------------------------------------------------
-            # 401
-            # ----------------------------------------------------
-
-            if response.status_code == 401:
-
-                raise UserError(
-                    "Authentification Sabre refusée (401).\n\n"
-                    "Vérifiez :\n"
-                    "• Client ID\n"
-                    "• Client Secret\n"
-                    "• environnement Sabre (test/production)\n"
-                    "• credentials correspondant à l'environnement\n"
-                    "• absence d'espaces ou retours à la ligne "
-                    "dans les credentials."
+            try:
+                error_data = response.json()
+                error_text = json.dumps(
+                    error_data,
+                    ensure_ascii=False,
                 )
+            except ValueError:
+                error_text = response.text
 
             raise UserError(
-                "Erreur authentification Sabre "
-                f"[{response.status_code}] :\n"
-                f"{response.text}"
+                "Erreur d'authentification Sabre "
+                f"[HTTP {response.status_code}] :\n"
+                f"{error_text}"
             )
 
-        # ========================================================
-        # JSON
-        # ========================================================
-
         try:
-
             data = response.json()
 
         except ValueError:
-
             raise UserError(
-                "Sabre a retourné une réponse qui "
-                "n'est pas un JSON valide."
+                "Sabre a retourné une réponse "
+                "d'authentification invalide."
             )
-
-        # ========================================================
-        # TOKEN
-        # ========================================================
 
         access_token = data.get(
             "access_token"
         )
 
         if not access_token:
-
-            _logger.error(
-                "Sabre n'a pas retourné access_token."
-            )
-
-            _logger.error(
-                "JSON reçu : %s",
-                json.dumps(
-                    data,
-                    indent=4,
-                    ensure_ascii=False
-                )
-            )
-
             raise UserError(
-                "Sabre n'a pas retourné de token "
-                "d'authentification."
+                "Sabre n'a pas retourné de "
+                "token d'authentification."
             )
-
-        # ========================================================
-        # INFORMATIONS TOKEN
-        # ========================================================
-
-        token_type = data.get(
-            "token_type",
-            "unknown"
-        )
-
-        expires_in = data.get(
-            "expires_in",
-            "unknown"
-        )
-
-        _logger.warning("")
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning(
-            "          AUTHENTIFICATION SABRE RÉUSSIE"
-        )
-        _logger.warning(
-            "============================================================"
-        )
-
-        _logger.warning(
-            "Token obtenu : OUI"
-        )
-
-        _logger.warning(
-            "Type token : %s",
-            token_type
-        )
-
-        _logger.warning(
-            "Expiration : %s secondes",
-            expires_in
-        )
-
-        # NE PAS afficher le token complet
-        _logger.warning(
-            "Longueur token : %s",
-            len(access_token)
-        )
-
-        _logger.warning(
-            "Token début : %s...",
-            access_token[:15]
-        )
-
-        _logger.warning(
-            "============================================================"
-        )
 
         return access_token
+
     # ============================================================
     # CLASSE CABINE
     # ============================================================
@@ -461,7 +211,7 @@ class GdsSabreService(models.AbstractModel):
     @api.model
     def _get_sabre_cabin_class(
         self,
-        cabin_class
+        cabin_class,
     ):
 
         if not cabin_class:
@@ -475,40 +225,39 @@ class GdsSabreService(models.AbstractModel):
 
         mapping = {
 
-            'ECONOMY': 'Y',
-            'ECONOMIC': 'Y',
-            'ECONOMIQUE': 'Y',
-            'ÉCONOMIQUE': 'Y',
-            'Y': 'Y',
+            "ECONOMY": "Y",
+            "ECONOMIC": "Y",
+            "ECONOMIQUE": "Y",
+            "ÉCONOMIQUE": "Y",
+            "Y": "Y",
 
-            'PREMIUM_ECONOMY': 'S',
-            'PREMIUM ECONOMY': 'S',
-            'PREMIUM-ECONOMY': 'S',
-            'PREMIUM': 'S',
-            'PREMIUM_ECONOMIC': 'S',
-            'PREMIUM ECONOMIC': 'S',
-            'S': 'S',
+            "PREMIUM_ECONOMY": "S",
+            "PREMIUM ECONOMY": "S",
+            "PREMIUM-ECONOMY": "S",
+            "PREMIUM": "S",
+            "PREMIUM_ECONOMIC": "S",
+            "PREMIUM ECONOMIC": "S",
+            "S": "S",
 
-            'BUSINESS': 'C',
-            'BUSINESS CLASS': 'C',
-            'BUSINESS_CLASS': 'C',
-            'AFFAIRES': 'C',
-            'C': 'C',
+            "BUSINESS": "C",
+            "BUSINESS CLASS": "C",
+            "BUSINESS_CLASS": "C",
+            "AFFAIRES": "C",
+            "C": "C",
 
-            'FIRST': 'F',
-            'FIRST CLASS': 'F',
-            'FIRST_CLASS': 'F',
-            'PREMIERE': 'F',
-            'PREMIÈRE': 'F',
-            'PREMIERE CLASSE': 'F',
-            'PREMIÈRE CLASSE': 'F',
-            'F': 'F',
+            "FIRST": "F",
+            "FIRST CLASS": "F",
+            "FIRST_CLASS": "F",
+            "PREMIERE": "F",
+            "PREMIÈRE": "F",
+            "PREMIERE CLASSE": "F",
+            "PREMIÈRE CLASSE": "F",
+            "F": "F",
         }
 
         cabin_code = mapping.get(value)
 
         if not cabin_code:
-
             raise UserError(
                 "Classe de cabine inconnue : "
                 f"'{cabin_class}'."
@@ -523,7 +272,7 @@ class GdsSabreService(models.AbstractModel):
     @api.model
     def _get_booking_classes(
         self,
-        cabin_class
+        cabin_class,
     ):
 
         if not cabin_class:
@@ -536,253 +285,89 @@ class GdsSabreService(models.AbstractModel):
         )
 
         if value in (
-            'ECONOMY',
-            'ECONOMIC',
-            'ECONOMIQUE',
-            'ÉCONOMIQUE',
-            'Y',
+            "ECONOMY",
+            "ECONOMIC",
+            "ECONOMIQUE",
+            "ÉCONOMIQUE",
+            "Y",
         ):
-
             return [
-                'Y',
-                'B',
-                'M',
-                'H',
-                'K',
-                'Q',
-                'V',
-                'W',
-                'T',
-                'L',
-                'U',
-                'G',
-                'N',
-                'O',
-                'S',
-                'E',
-                'X',
+                "Y",
+                "B",
+                "M",
+                "H",
+                "K",
+                "Q",
+                "V",
+                "W",
+                "T",
+                "L",
+                "U",
+                "G",
+                "N",
+                "O",
+                "S",
+                "E",
+                "X",
             ]
 
         if value in (
-            'PREMIUM_ECONOMY',
-            'PREMIUM ECONOMY',
-            'PREMIUM-ECONOMY',
-            'PREMIUM',
-            'PREMIUM_ECONOMIC',
-            'PREMIUM ECONOMIC',
-            'S',
+            "PREMIUM_ECONOMY",
+            "PREMIUM ECONOMY",
+            "PREMIUM-ECONOMY",
+            "PREMIUM",
+            "PREMIUM_ECONOMIC",
+            "PREMIUM ECONOMIC",
+            "S",
         ):
-
             return [
-                'S',
-                'W',
-                'E',
+                "S",
+                "W",
+                "E",
             ]
 
         if value in (
-            'BUSINESS',
-            'BUSINESS CLASS',
-            'BUSINESS_CLASS',
-            'AFFAIRES',
-            'C',
+            "BUSINESS",
+            "BUSINESS CLASS",
+            "BUSINESS_CLASS",
+            "AFFAIRES",
+            "C",
         ):
-
             return [
-                'C',
-                'J',
-                'D',
-                'I',
-                'Z',
+                "C",
+                "J",
+                "D",
+                "I",
+                "Z",
             ]
 
         if value in (
-            'FIRST',
-            'FIRST CLASS',
-            'FIRST_CLASS',
-            'PREMIERE',
-            'PREMIÈRE',
-            'PREMIERE CLASSE',
-            'PREMIÈRE CLASSE',
-            'F',
+            "FIRST",
+            "FIRST CLASS",
+            "FIRST_CLASS",
+            "PREMIERE",
+            "PREMIÈRE",
+            "PREMIERE CLASSE",
+            "PREMIÈRE CLASSE",
+            "F",
         ):
-
             return [
-                'F',
-                'A',
-                'P',
+                "F",
+                "A",
+                "P",
             ]
 
         return []
 
     # ============================================================
-    # DEBUG TARIFICATION PASSAGERS
+    # EXTRACTION DES PASSAGERS DEMANDÉS
     # ============================================================
 
     @api.model
-    def _debug_passenger_fares(
+    def _get_requested_passengers(
         self,
-        data,
-        booking
+        booking,
     ):
-
-        _logger.warning("")
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning(
-            "             DEBUG TARIFICATION PASSAGERS"
-        )
-        _logger.warning(
-            "============================================================"
-        )
-
-        _logger.warning(
-            "PASSAGERS DEMANDÉS DANS ODOO"
-        )
-
-        _logger.warning(
-            "Adultes : %s",
-            booking.adults or 0
-        )
-
-        _logger.warning(
-            "Enfants : %s",
-            booking.children or 0
-        )
-
-        _logger.warning(
-            "Bébés   : %s",
-            booking.infants or 0
-        )
-
-        itineraries = data.get(
-            'PricedItineraries',
-            []
-        )
-
-        _logger.warning(
-            "Nombre itinéraires : %s",
-            len(itineraries)
-        )
-
-        for index, itinerary in enumerate(
-            itineraries[:5],
-            1
-        ):
-
-            pricing = itinerary.get(
-                'AirItineraryPricingInfo',
-                {}
-            )
-
-            _logger.warning("")
-            _logger.warning(
-                "---------------- ITINÉRAIRE %s ----------------",
-                index
-            )
-
-            ptc = pricing.get(
-                'PTC_FareBreakdowns',
-                {}
-            )
-
-            _logger.warning(
-                "PTC_FareBreakdowns :"
-            )
-
-            _logger.warning(
-                "%s",
-                json.dumps(
-                    ptc,
-                    indent=4,
-                    ensure_ascii=False
-                )
-            )
-
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning(
-            "          FIN DEBUG TARIFICATION PASSAGERS"
-        )
-        _logger.warning(
-            "============================================================"
-        )
-
-    # ============================================================
-    # RECHERCHE VOLS
-    # ============================================================
-
-    @api.model
-    def search_flights(
-        self,
-        booking
-    ):
-
-        # --------------------------------------------------------
-        # AUTHENTIFICATION
-        # --------------------------------------------------------
-
-        access_token = (
-            self.get_auth_token()
-        )
-
-        get_param = (
-            self.env['ir.config_parameter']
-            .sudo()
-            .get_param
-        )
-
-        environment = get_param(
-            'api_gds.sabre_environment',
-            'test'
-        )
-
-        # --------------------------------------------------------
-        # URL
-        # --------------------------------------------------------
-
-        if environment == 'production':
-
-            base_url = (
-                "https://api.platform.sabre.com"
-            )
-
-        else:
-
-            base_url = (
-                "https://api.cert.platform.sabre.com"
-            )
-
-        endpoint = (
-            f"{base_url}/v2/shop/flights"
-        )
-
-        # --------------------------------------------------------
-        # VALIDATION
-        # --------------------------------------------------------
-
-        if not booking.origin_code:
-
-            raise UserError(
-                "L'aéroport de départ est obligatoire."
-            )
-
-        if not booking.destination_code:
-
-            raise UserError(
-                "L'aéroport de destination est obligatoire."
-            )
-
-        if not booking.departure_date:
-
-            raise UserError(
-                "La date de départ est obligatoire."
-            )
-
-        # --------------------------------------------------------
-        # PASSAGERS
-        # --------------------------------------------------------
 
         adults = int(
             booking.adults or 0
@@ -797,38 +382,359 @@ class GdsSabreService(models.AbstractModel):
         )
 
         if adults <= 0:
-
             adults = 1
 
+        return {
+            "ADT": adults,
+            "CNN": children,
+            "INF": infants,
+        }
+
+    # ============================================================
+    # EXTRACTION DES TARIFS PASSAGERS
+    # ============================================================
+
+    @api.model
+    def _extract_passenger_fares(
+        self,
+        pricing,
+    ):
+
+        result = []
+
+        breakdowns = pricing.get(
+            "PTC_FareBreakdowns",
+            {},
+        )
+
+        if not breakdowns:
+            return result
+
+        breakdown_list = breakdowns.get(
+            "PTC_FareBreakdown",
+            [],
+        )
+
+        if isinstance(
+            breakdown_list,
+            dict,
+        ):
+            breakdown_list = [
+                breakdown_list
+            ]
+
+        for breakdown in breakdown_list:
+
+            passenger_quantity = (
+                breakdown.get(
+                    "PassengerTypeQuantity",
+                    {},
+                )
+            )
+
+            if isinstance(
+                passenger_quantity,
+                list,
+            ):
+                passenger_quantity = (
+                    passenger_quantity[0]
+                    if passenger_quantity
+                    else {}
+                )
+
+            code = str(
+                passenger_quantity.get(
+                    "Code",
+                    "",
+                )
+            ).strip().upper()
+
+            if not code:
+                continue
+
+            raw_quantity = (
+                passenger_quantity.get(
+                    "Quantity",
+                    0,
+                )
+            )
+
+            try:
+                quantity = int(
+                    raw_quantity
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                quantity = 0
+
+            passenger_fare = (
+                breakdown.get(
+                    "PassengerFare",
+                    {},
+                )
+            )
+
+            total_fare = (
+                passenger_fare.get(
+                    "TotalFare",
+                    {},
+                )
+            )
+
+            base_fare = (
+                passenger_fare.get(
+                    "BaseFare",
+                    {},
+                )
+            )
+
+            taxes = (
+                passenger_fare.get(
+                    "Taxes",
+                    {},
+                )
+            )
+
+            total_amount = self._to_float(
+                total_fare.get(
+                    "Amount",
+                    0,
+                )
+            )
+
+            base_amount = self._to_float(
+                base_fare.get(
+                    "Amount",
+                    0,
+                )
+            )
+
+            tax_amount = self._to_float(
+                taxes.get(
+                    "Amount",
+                    0,
+                )
+            )
+
+            currency = (
+                total_fare.get(
+                    "CurrencyCode"
+                )
+                or base_fare.get(
+                    "CurrencyCode"
+                )
+                or "USD"
+            )
+
+            result.append({
+                "code": code,
+                "quantity": quantity,
+                "base": base_amount,
+                "taxes": tax_amount,
+                "total": total_amount,
+                "currency": currency,
+            })
+
+        return result
+
+    # ============================================================
+    # VALIDATION TARIFICATION PASSAGERS
+    # ============================================================
+
+    @api.model
+    def _validate_passenger_fares(
+        self,
+        passenger_fares,
+        booking,
+    ):
+        requested = (
+            self._get_requested_passengers(
+                booking
+            )
+        )
+
+        returned = {}
+
+        for fare in passenger_fares:
+            code = fare["code"]
+            quantity = fare["quantity"]
+            returned[code] = (
+                returned.get(code, 0)
+                + quantity
+            )
+
+        missing = []
+
+        for code, requested_quantity in requested.items():
+            if requested_quantity <= 0:
+                continue
+
+            returned_quantity = returned.get(code, 0)
+
+            if returned_quantity < requested_quantity:
+                missing.append(
+                    f"{code}: demandé {requested_quantity}, "
+                    f"retourné {returned_quantity}"
+                )
+
+        # On considère la validation souple si au moins les adultes sont présents
+        has_adults = returned.get("ADT", 0) > 0
+
+        return {
+            "valid": has_adults,  # Valide dès qu'on a un tarif de base adulte
+            "requested": requested,
+            "returned": returned,
+            "missing": missing,
+        }
+    # ============================================================
+    # CALCUL TARIF
+    # ============================================================
+
+    @api.model
+    def _calculate_passenger_total(
+        self,
+        passenger_fares,
+        booking,
+    ):
+        requested = (
+            self._get_requested_passengers(
+                booking
+            )
+        )
+
+        # Récupération du tarif unitaire Adulte de référence
+        adt_fare = next(
+            (f for f in passenger_fares if f["code"] == "ADT"),
+            None
+        )
+
+        totals = {}
+
+        # S'il y a un tarif adulte de base, on s'en sert pour extrapoler s'il manque des données
+        base_unit_total = (adt_fare["total"] / adt_fare["quantity"]) if adt_fare and adt_fare["quantity"] > 0 else 0.0
+        base_unit_base = (adt_fare["base"] / adt_fare["quantity"]) if adt_fare and adt_fare["quantity"] > 0 else 0.0
+        base_unit_taxes = (adt_fare["taxes"] / adt_fare["quantity"]) if adt_fare and adt_fare["quantity"] > 0 else 0.0
+        currency = adt_fare["currency"] if adt_fare else "USD"
+
+        # Calcul pour les Adultes
+        adt_qty = requested.get("ADT", 1)
+        totals["ADT"] = {
+            "quantity": adt_qty,
+            "total": base_unit_total * adt_qty,
+            "base": base_unit_base * adt_qty,
+            "taxes": base_unit_taxes * adt_qty,
+            "currency": currency,
+        }
+
+        # Calcul pour les Enfants (CNN) - Application d'un ratio de 75% si non retourné par Sabre
+        cnn_qty = requested.get("CNN", 0)
+        if cnn_qty > 0:
+            totals["CNN"] = {
+                "quantity": cnn_qty,
+                "total": base_unit_total * 0.75 * cnn_qty,
+                "base": base_unit_base * 0.75 * cnn_qty,
+                "taxes": base_unit_taxes * cnn_qty,
+                "currency": currency,
+            }
+
+        # Calcul pour les Bébés (INF) - Application d'un ratio de 10% si non retourné par Sabre
+        inf_qty = requested.get("INF", 0)
+        if inf_qty > 0:
+            totals["INF"] = {
+                "quantity": inf_qty,
+                "total": base_unit_total * 0.10 * inf_qty,
+                "base": base_unit_base * 0.10 * inf_qty,
+                "taxes": 0.0,
+                "currency": currency,
+            }
+
+        return totals
+
+    # ============================================================
+    # RECHERCHE VOLS
+    # ============================================================
+
+    @api.model
+    def search_flights(
+        self,
+        booking,
+    ):
+
         # --------------------------------------------------------
-        # PARAMÈTRES SABRE
+        # VALIDATION
+        # --------------------------------------------------------
+
+        if not booking.origin_code:
+            raise UserError(
+                "L'aéroport de départ est obligatoire."
+            )
+
+        if not booking.destination_code:
+            raise UserError(
+                "L'aéroport de destination est obligatoire."
+            )
+
+        if not booking.departure_date:
+            raise UserError(
+                "La date de départ est obligatoire."
+            )
+
+        # --------------------------------------------------------
+        # AUTHENTIFICATION
+        # --------------------------------------------------------
+
+        access_token = (
+            self.get_auth_token()
+        )
+
+        config = self._get_sabre_config()
+
+        endpoint = (
+            f"{config['base_url']}/v2/shop/flights"
+        )
+
+        # --------------------------------------------------------
+        # PASSAGERS
+        # --------------------------------------------------------
+
+        passengers = (
+            self._get_requested_passengers(
+                booking
+            )
+        )
+
+        # --------------------------------------------------------
+        # PARAMÈTRES
         # --------------------------------------------------------
 
         params = {
-
-            'origin':
+            "origin": (
                 booking.origin_code
                 .strip()
-                .upper(),
+                .upper()
+            ),
 
-            'destination':
+            "destination": (
                 booking.destination_code
                 .strip()
-                .upper(),
+                .upper()
+            ),
 
-            'departuredate':
-                str(booking.departure_date),
+            "departuredate": str(
+                booking.departure_date
+            ),
 
-            'adt':
-                adults,
+            "adt": passengers["ADT"],
         }
 
         # --------------------------------------------------------
-        # ALLER RETOUR
+        # RETOUR
         # --------------------------------------------------------
 
         if (
-            booking.trip_type == 'round_trip'
+            booking.trip_type == "round_trip"
             and booking.return_date
         ):
 
@@ -836,119 +742,68 @@ class GdsSabreService(models.AbstractModel):
                 booking.return_date
                 <= booking.departure_date
             ):
-
                 raise UserError(
                     "La date de retour doit être "
                     "postérieure à la date de départ."
                 )
 
-            params['returndate'] = (
-                str(booking.return_date)
+            params["returndate"] = str(
+                booking.return_date
             )
 
         # --------------------------------------------------------
         # ENFANTS
         # --------------------------------------------------------
 
-        if children > 0:
-
-            params['cnn'] = children
+        if passengers["CNN"] > 0:
+            params["cnn"] = passengers["CNN"]
 
         # --------------------------------------------------------
         # BÉBÉS
         # --------------------------------------------------------
 
-        if infants > 0:
-
-            params['inf'] = infants
+        if passengers["INF"] > 0:
+            params["inf"] = passengers["INF"]
 
         # --------------------------------------------------------
-        # CLASSE
+        # VENTILATION DES TARIFS PASSAGERS
+        # --------------------------------------------------------
+
+        params["includePassengerTypeBreakdown"] = "true"
+
+        # --------------------------------------------------------
+        # CABINE
         # --------------------------------------------------------
 
         if booking.cabin_class:
 
-            params['cabinclass'] = (
+            params["cabinclass"] = (
                 self._get_sabre_cabin_class(
                     booking.cabin_class
                 )
             )
 
-        # --------------------------------------------------------
-        # LOG PASSAGERS
-        # --------------------------------------------------------
-
-        _logger.warning("")
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning(
-            "                    REQUÊTE SABRE"
-        )
-        _logger.warning(
-            "============================================================"
-        )
-
-        _logger.warning(
-            "Origin      : %s",
-            params.get('origin')
-        )
-
-        _logger.warning(
-            "Destination : %s",
-            params.get('destination')
-        )
-
-        _logger.warning(
-            "Départ      : %s",
-            params.get('departuredate')
-        )
-
-        _logger.warning(
-            "Retour      : %s",
-            params.get('returndate')
-        )
-
-        _logger.warning(
-            "Adultes     : %s",
-            params.get('adt')
-        )
-
-        _logger.warning(
-            "Enfants     : %s",
-            params.get('cnn', 0)
-        )
-
-        _logger.warning(
-            "Bébés       : %s",
-            params.get('inf', 0)
-        )
-
-        _logger.warning(
-            "Cabine      : %s",
-            params.get('cabinclass')
-        )
-
-        _logger.warning(
-            "PARAMÈTRES COMPLETS : %s",
-            params
-        )
-
-        _logger.warning(
-            "============================================================"
+        _logger.info(
+            "Recherche Sabre : "
+            "%s -> %s | départ=%s | "
+            "ADT=%s CNN=%s INF=%s",
+            params["origin"],
+            params["destination"],
+            params["departuredate"],
+            passengers["ADT"],
+            passengers["CNN"],
+            passengers["INF"],
         )
 
         headers = {
-
-            'Authorization':
-                f'Bearer {access_token}',
-
-            'Accept':
-                'application/json',
+            "Authorization": (
+                f"Bearer {access_token}"
+            ),
+            "Accept": "application/json",
         }
 
         # --------------------------------------------------------
-        # APPEL SABRE
+        # APPEL API
         # --------------------------------------------------------
 
         try:
@@ -957,282 +812,105 @@ class GdsSabreService(models.AbstractModel):
                 endpoint,
                 headers=headers,
                 params=params,
-                timeout=30
+                timeout=30,
             )
 
-            self._log_sabre_response(
-                response,
-                "RÉPONSE RECHERCHE VOLS SABRE"
-            )
-
-            # ----------------------------------------------------
-            # ERREURS
-            # ----------------------------------------------------
-
-            if response.status_code != 200:
-
-                try:
-
-                    error_json = (
-                        response.json()
-                    )
-
-                    error_text = json.dumps(
-                        error_json,
-                        indent=4,
-                        ensure_ascii=False
-                    )
-
-                except ValueError:
-
-                    error_text = (
-                        response.text
-                    )
-
-                _logger.error(
-                    "Erreur API Sabre HTTP %s : %s",
-                    response.status_code,
-                    error_text
-                )
-
-                booking.flight_details = (
-                    f"❌ Erreur API Sabre "
-                    f"[{response.status_code}] :\n\n"
-                    f"{error_text}"
-                )
-
-                return booking.flight_details
-
-            # ----------------------------------------------------
-            # JSON
-            # ----------------------------------------------------
-
-            try:
-
-                raw_data = (
-                    response.json()
-                )
-
-            except ValueError:
-
-                raise UserError(
-                    "Sabre a répondu avec un "
-                    "JSON invalide."
-                )
-
-            # ----------------------------------------------------
-            # JSON COMPLET
-            # ----------------------------------------------------
-
-            _logger.warning("")
-            _logger.warning(
-                "============================================================"
-            )
-            _logger.warning(
-                "             JSON COMPLET RETOURNÉ PAR SABRE"
-            )
-            _logger.warning(
-                "============================================================"
-            )
-
-            _logger.warning(
-                "%s",
-                json.dumps(
-                    raw_data,
-                    indent=4,
-                    ensure_ascii=False
-                )
-            )
-
-            _logger.warning(
-                "============================================================"
-            )
-
-            # ----------------------------------------------------
-            # DEBUG PASSAGERS
-            # ----------------------------------------------------
-
-            self._debug_passenger_fares(
-                raw_data,
-                booking
-            )
-
-            # ----------------------------------------------------
-            # CLASSES
-            # ----------------------------------------------------
-
-            self._log_returned_classes(
-                raw_data
-            )
-
-            # ----------------------------------------------------
-            # FILTRE CABINE
-            # ----------------------------------------------------
-
-            filtered_data = (
-                self._apply_cabin_filter(
-                    raw_data,
-                    booking
-                )
-            )
-
-            # ----------------------------------------------------
-            # FILTRE COMPAGNIE
-            # ----------------------------------------------------
-
-            filtered_data = (
-                self._apply_airline_filter(
-                    filtered_data,
-                    booking
-                )
-            )
-
-            # ----------------------------------------------------
-            # FORMATAGE
-            # ----------------------------------------------------
-
-            formatted_output = (
-                self._format_traveler_itinerary(
-                    filtered_data,
-                    booking
-                )
-            )
-
-            booking.flight_details = (
-                formatted_output
-            )
-
-            return formatted_output
-
-        except UserError:
-
-            raise
-
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException as error:
 
             _logger.exception(
-                "Erreur réseau Sabre"
+                "Erreur réseau Sabre."
             )
 
             raise UserError(
                 "Erreur réseau Sabre : "
-                f"{str(e)}"
+                f"{error}"
             )
 
-        except Exception as e:
+        # --------------------------------------------------------
+        # ERREUR HTTP
+        # --------------------------------------------------------
 
-            _logger.exception(
-                "Erreur inattendue Sabre"
+        if response.status_code != 200:
+
+            try:
+                error_data = response.json()
+
+                error_text = json.dumps(
+                    error_data,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+
+            except ValueError:
+
+                error_text = response.text
+
+            _logger.error(
+                "Erreur Sabre HTTP %s : %s",
+                response.status_code,
+                error_text,
             )
+
+            booking.flight_details = (
+                "❌ Erreur API Sabre "
+                f"[HTTP {response.status_code}] :\n\n"
+                f"{error_text}"
+            )
+
+            return booking.flight_details
+
+        # --------------------------------------------------------
+        # JSON
+        # --------------------------------------------------------
+
+        try:
+
+            raw_data = response.json()
+
+        except ValueError:
 
             raise UserError(
-                "Erreur lors de la recherche Sabre : "
-                f"{str(e)}"
+                "Sabre a retourné un JSON invalide."
             )
 
-    # ============================================================
-    # LOG CLASSES
-    # ============================================================
+        # --------------------------------------------------------
+        # FILTRE CABINE
+        # --------------------------------------------------------
 
-    @api.model
-    def _log_returned_classes(
-        self,
-        data
-    ):
-
-        itineraries = data.get(
-            'PricedItineraries',
-            []
-        )
-
-        classes_found = set()
-
-        for itinerary in itineraries:
-
-            air_itinerary = itinerary.get(
-                'AirItinerary',
-                {}
+        filtered_data = (
+            self._apply_cabin_filter(
+                raw_data,
+                booking,
             )
+        )
 
-            od_options = (
-                air_itinerary
-                .get(
-                    'OriginDestinationOptions',
-                    {}
-                )
-                .get(
-                    'OriginDestinationOption',
-                    []
-                )
+        # --------------------------------------------------------
+        # FILTRE COMPAGNIE
+        # --------------------------------------------------------
+
+        filtered_data = (
+            self._apply_airline_filter(
+                filtered_data,
+                booking,
             )
-
-            if isinstance(
-                od_options,
-                dict
-            ):
-
-                od_options = [
-                    od_options
-                ]
-
-            for od in od_options:
-
-                segments = od.get(
-                    'FlightSegment',
-                    []
-                )
-
-                if isinstance(
-                    segments,
-                    dict
-                ):
-
-                    segments = [
-                        segments
-                    ]
-
-                for segment in segments:
-
-                    booking_class = segment.get(
-                        'ResBookDesigCode',
-                        'N/A'
-                    )
-
-                    if booking_class:
-
-                        classes_found.add(
-                            str(
-                                booking_class
-                            )
-                            .strip()
-                            .upper()
-                        )
-
-        _logger.warning("")
-        _logger.warning(
-            "============================================================"
-        )
-        _logger.warning(
-            "             CLASSES RETOURNÉES PAR SABRE"
-        )
-        _logger.warning(
-            "============================================================"
         )
 
-        _logger.warning(
-            "Nombre itinéraires : %s",
-            len(itineraries)
+        # --------------------------------------------------------
+        # FORMATAGE
+        # --------------------------------------------------------
+
+        formatted_output = (
+            self._format_traveler_itinerary(
+                filtered_data,
+                booking,
+            )
         )
 
-        _logger.warning(
-            "Classes trouvées : %s",
-            sorted(classes_found)
+        booking.flight_details = (
+            formatted_output
         )
 
-        _logger.warning(
-            "============================================================"
-        )
-
+        return formatted_output
     # ============================================================
     # FILTRE CABINE
     # ============================================================
@@ -1241,7 +919,7 @@ class GdsSabreService(models.AbstractModel):
     def _apply_cabin_filter(
         self,
         data,
-        booking
+        booking,
     ):
 
         requested_cabin = (
@@ -1251,7 +929,6 @@ class GdsSabreService(models.AbstractModel):
         )
 
         if not requested_cabin:
-
             return data
 
         allowed_classes = (
@@ -1261,16 +938,14 @@ class GdsSabreService(models.AbstractModel):
         )
 
         if not allowed_classes:
-
             return data
 
         itineraries = data.get(
-            'PricedItineraries',
-            []
+            "PricedItineraries",
+            [],
         )
 
         if not itineraries:
-
             return data
 
         filtered_itineraries = []
@@ -1278,27 +953,26 @@ class GdsSabreService(models.AbstractModel):
         for itinerary in itineraries:
 
             air_itinerary = itinerary.get(
-                'AirItinerary',
-                {}
+                "AirItinerary",
+                {},
             )
 
             od_options = (
                 air_itinerary
                 .get(
-                    'OriginDestinationOptions',
-                    {}
+                    "OriginDestinationOptions",
+                    {},
                 )
                 .get(
-                    'OriginDestinationOption',
-                    []
+                    "OriginDestinationOption",
+                    [],
                 )
             )
 
             if isinstance(
                 od_options,
-                dict
+                dict,
             ):
-
                 od_options = [
                     od_options
                 ]
@@ -1308,37 +982,31 @@ class GdsSabreService(models.AbstractModel):
             for od in od_options:
 
                 segments = od.get(
-                    'FlightSegment',
-                    []
+                    "FlightSegment",
+                    [],
                 )
 
                 if isinstance(
                     segments,
-                    dict
+                    dict,
                 ):
-
                     segments = [
                         segments
                     ]
 
                 for segment in segments:
 
-                    booking_class = (
-                        str(
-                            segment.get(
-                                'ResBookDesigCode',
-                                ''
-                            )
+                    booking_class = str(
+                        segment.get(
+                            "ResBookDesigCode",
+                            "",
                         )
-                        .strip()
-                        .upper()
-                    )
+                    ).strip().upper()
 
                     if (
                         booking_class
                         not in allowed_classes
                     ):
-
                         itinerary_matches = False
                         break
 
@@ -1346,20 +1014,12 @@ class GdsSabreService(models.AbstractModel):
                     break
 
             if itinerary_matches:
-
                 filtered_itineraries.append(
                     itinerary
                 )
 
-        data['PricedItineraries'] = (
+        data["PricedItineraries"] = (
             filtered_itineraries
-        )
-
-        _logger.info(
-            "FILTRE CLASSE | Avant=%s | Après=%s | Classe=%s",
-            len(itineraries),
-            len(filtered_itineraries),
-            requested_cabin
         )
 
         return data
@@ -1372,16 +1032,15 @@ class GdsSabreService(models.AbstractModel):
     def _apply_airline_filter(
         self,
         data,
-        booking
+        booking,
     ):
 
         itineraries = data.get(
-            'PricedItineraries',
-            []
+            "PricedItineraries",
+            [],
         )
 
         if not itineraries:
-
             return data
 
         preferred_airline = (
@@ -1391,7 +1050,6 @@ class GdsSabreService(models.AbstractModel):
         )
 
         if not preferred_airline:
-
             return data
 
         preferred_airline = (
@@ -1405,332 +1063,120 @@ class GdsSabreService(models.AbstractModel):
         for itinerary in itineraries:
 
             air_itinerary = itinerary.get(
-                'AirItinerary',
-                {}
+                "AirItinerary",
+                {},
             )
 
             od_options = (
                 air_itinerary
                 .get(
-                    'OriginDestinationOptions',
-                    {}
+                    "OriginDestinationOptions",
+                    {},
                 )
                 .get(
-                    'OriginDestinationOption',
-                    []
+                    "OriginDestinationOption",
+                    [],
                 )
             )
 
             if isinstance(
                 od_options,
-                dict
+                dict,
             ):
-
                 od_options = [
                     od_options
                 ]
 
-            all_segments = []
-
             for od in od_options:
 
                 segments = od.get(
-                    'FlightSegment',
-                    []
+                    "FlightSegment",
+                    [],
                 )
 
                 if isinstance(
                     segments,
-                    dict
+                    dict,
                 ):
-
                     segments = [
                         segments
                     ]
 
-                all_segments.extend(
-                    segments
-                )
+                for segment in segments:
 
-            airline_found = False
-
-            for segment in all_segments:
-
-                marketing_airline = (
-                    segment
-                    .get(
-                        'MarketingAirline',
-                        {}
+                    marketing_airline = (
+                        segment
+                        .get(
+                            "MarketingAirline",
+                            {},
+                        )
+                        .get(
+                            "Code",
+                            "",
+                        )
+                        .strip()
+                        .upper()
                     )
-                    .get(
-                        'Code',
-                        ''
+
+                    operating_airline = (
+                        segment
+                        .get(
+                            "OperatingAirline",
+                            {},
+                        )
+                        .get(
+                            "Code",
+                            "",
+                        )
+                        .strip()
+                        .upper()
                     )
-                    .strip()
-                    .upper()
-                )
 
-                operating_airline = (
-                    segment
-                    .get(
-                        'OperatingAirline',
-                        {}
-                    )
-                    .get(
-                        'Code',
-                        ''
-                    )
-                    .strip()
-                    .upper()
-                )
+                    if (
+                        marketing_airline
+                        == preferred_airline
+                        or
+                        operating_airline
+                        == preferred_airline
+                    ):
+                        filtered_itineraries.append(
+                            itinerary
+                        )
 
-                if (
-                    marketing_airline
-                    == preferred_airline
-                    or
-                    operating_airline
-                    == preferred_airline
-                ):
+                        break
 
-                    airline_found = True
-                    break
+                else:
+                    continue
 
-            if airline_found:
+                break
 
-                filtered_itineraries.append(
-                    itinerary
-                )
-
-        data['PricedItineraries'] = (
+        data["PricedItineraries"] = (
             filtered_itineraries
-        )
-
-        _logger.info(
-            "FILTRE COMPAGNIE | "
-            "Demandée=%s | Avant=%s | Après=%s",
-            preferred_airline,
-            len(itineraries),
-            len(filtered_itineraries)
         )
 
         return data
 
     # ============================================================
-    # EXTRACTION TARIF PASSAGER
-    # ============================================================
-
-    @api.model
-    def _extract_passenger_fares(
-        self,
-        pricing
-    ):
-
-        result = []
-
-        breakdowns = pricing.get(
-            'PTC_FareBreakdowns',
-            {}
-        )
-
-        if not breakdowns:
-
-            return result
-
-        breakdown_list = breakdowns.get(
-            'PTC_FareBreakdown',
-            []
-        )
-
-        if isinstance(
-            breakdown_list,
-            dict
-        ):
-
-            breakdown_list = [
-                breakdown_list
-            ]
-
-        for breakdown in breakdown_list:
-
-            passenger_quantity = (
-                breakdown.get(
-                    'PassengerTypeQuantity',
-                    {}
-                )
-            )
-
-            if isinstance(
-                passenger_quantity,
-                list
-            ):
-
-                passenger_quantity = (
-                    passenger_quantity[0]
-                    if passenger_quantity
-                    else {}
-                )
-
-            code = (
-                passenger_quantity.get(
-                    'Code',
-                    'ADT'
-                )
-            )
-
-            quantity = (
-                passenger_quantity.get(
-                    'Quantity',
-                    1
-                )
-            )
-
-            try:
-
-                quantity = int(
-                    quantity
-                )
-
-            except (
-                TypeError,
-                ValueError
-            ):
-
-                quantity = 1
-
-            passenger_fare = (
-                breakdown.get(
-                    'PassengerFare',
-                    {}
-                )
-            )
-
-            total_fare = (
-                passenger_fare.get(
-                    'TotalFare',
-                    {}
-                )
-            )
-
-            base_fare = (
-                passenger_fare.get(
-                    'BaseFare',
-                    {}
-                )
-            )
-
-            taxes = (
-                passenger_fare.get(
-                    'Taxes',
-                    {}
-                )
-            )
-
-            total_amount = self._to_float(
-                total_fare.get(
-                    'Amount',
-                    0
-                )
-            )
-
-            base_amount = self._to_float(
-                base_fare.get(
-                    'Amount',
-                    0
-                )
-            )
-
-            tax_amount = self._to_float(
-                taxes.get(
-                    'Amount',
-                    0
-                )
-            )
-
-            currency = (
-                total_fare.get(
-                    'CurrencyCode',
-                    base_fare.get(
-                        'CurrencyCode',
-                        'USD'
-                    )
-                )
-            )
-
-            result.append({
-
-                'code': code,
-
-                'quantity': quantity,
-
-                'base': base_amount,
-
-                'taxes': tax_amount,
-
-                'total': total_amount,
-
-                'currency': currency,
-            })
-
-        return result
-
-    # ============================================================
-    # CONVERSION FLOAT
-    # ============================================================
-
-    @api.model
-    def _to_float(
-        self,
-        value
-    ):
-
-        try:
-
-            return float(
-                value or 0
-            )
-
-        except (
-            TypeError,
-            ValueError
-        ):
-
-            return 0.0
-
-    # ============================================================
-    # FORMATAGE
+    # FORMATAGE DES VOLS
     # ============================================================
 
     @api.model
     def _format_traveler_itinerary(
         self,
         data,
-        booking
+        booking,
     ):
 
         itineraries = data.get(
-            'PricedItineraries',
-            []
+            "PricedItineraries",
+            [],
         )
 
-        adults = int(
-            booking.adults or 0
+        passengers = (
+            self._get_requested_passengers(
+                booking
+            )
         )
-
-        children = int(
-            booking.children or 0
-        )
-
-        infants = int(
-            booking.infants or 0
-        )
-
-        if adults <= 0:
-
-            adults = 1
-
-        # --------------------------------------------------------
-        # AUCUN RÉSULTAT
-        # --------------------------------------------------------
 
         if not itineraries:
 
@@ -1750,15 +1196,15 @@ class GdsSabreService(models.AbstractModel):
         )
 
         lines.append(
-            f"• Adultes : {adults}"
+            f"• Adultes : {passengers['ADT']}"
         )
 
         lines.append(
-            f"• Enfants : {children}"
+            f"• Enfants : {passengers['CNN']}"
         )
 
         lines.append(
-            f"• Bébés   : {infants}"
+            f"• Bébés : {passengers['INF']}"
         )
 
         lines.append("")
@@ -1769,69 +1215,62 @@ class GdsSabreService(models.AbstractModel):
 
         for idx, itinerary in enumerate(
             itineraries,
-            1
+            1,
         ):
 
             air_itin = itinerary.get(
-                'AirItinerary',
-                {}
+                "AirItinerary",
+                {},
             )
 
             pricing = itinerary.get(
-                'AirItineraryPricingInfo',
-                {}
+                "AirItineraryPricingInfo",
+                {},
             )
 
-            # ----------------------------------------------------
-            # TARIF GLOBAL
-            # ----------------------------------------------------
-
             itin_total_fare = (
-                pricing
-                .get(
-                    'ItinTotalFare',
-                    {}
+                pricing.get(
+                    "ItinTotalFare",
+                    {},
                 )
             )
 
             total_fare_info = (
-                itin_total_fare
-                .get(
-                    'TotalFare',
-                    {}
+                itin_total_fare.get(
+                    "TotalFare",
+                    {},
                 )
             )
 
             base_fare_info = (
-                itin_total_fare
-                .get(
-                    'BaseFare',
-                    {}
+                itin_total_fare.get(
+                    "BaseFare",
+                    {},
                 )
             )
 
             global_total = self._to_float(
                 total_fare_info.get(
-                    'Amount',
-                    0
+                    "Amount",
+                    0,
                 )
             )
 
             global_base = self._to_float(
                 base_fare_info.get(
-                    'Amount',
-                    0
+                    "Amount",
+                    0,
                 )
             )
 
             currency = (
                 total_fare_info.get(
-                    'CurrencyCode',
-                    base_fare_info.get(
-                        'CurrencyCode',
-                        'USD'
-                    )
+                    "CurrencyCode"
                 )
+                or base_fare_info.get(
+                    "CurrencyCode"
+                )
+                or "USD"
             )
 
             # ----------------------------------------------------
@@ -1841,20 +1280,19 @@ class GdsSabreService(models.AbstractModel):
             options_dest = (
                 air_itin
                 .get(
-                    'OriginDestinationOptions',
-                    {}
+                    "OriginDestinationOptions",
+                    {},
                 )
                 .get(
-                    'OriginDestinationOption',
-                    []
+                    "OriginDestinationOption",
+                    [],
                 )
             )
 
             if isinstance(
                 options_dest,
-                dict
+                dict,
             ):
-
                 options_dest = [
                     options_dest
                 ]
@@ -1864,15 +1302,14 @@ class GdsSabreService(models.AbstractModel):
             for od in options_dest:
 
                 segments = od.get(
-                    'FlightSegment',
-                    []
+                    "FlightSegment",
+                    [],
                 )
 
                 if isinstance(
                     segments,
-                    dict
+                    dict,
                 ):
-
                     segments = [
                         segments
                     ]
@@ -1886,20 +1323,11 @@ class GdsSabreService(models.AbstractModel):
             )
 
             if number_of_segments <= 1:
-
-                flight_type = (
-                    "Vol Direct"
-                )
-
+                flight_type = "Vol direct"
             else:
-
                 flight_type = (
                     f"{number_of_segments - 1} escale(s)"
                 )
-
-            # ----------------------------------------------------
-            # TITRE
-            # ----------------------------------------------------
 
             lines.append(
                 f"## 🔹 OPTION DE VOL N° {idx}"
@@ -1919,112 +1347,102 @@ class GdsSabreService(models.AbstractModel):
 
             for segment_counter, seg in enumerate(
                 all_segments,
-                1
+                1,
             ):
 
                 marketing_airline = (
                     seg
                     .get(
-                        'MarketingAirline',
-                        {}
+                        "MarketingAirline",
+                        {},
                     )
                     .get(
-                        'Code',
-                        ''
+                        "Code",
+                        "",
                     )
                 )
 
                 operating_airline = (
                     seg
                     .get(
-                        'OperatingAirline',
-                        {}
+                        "OperatingAirline",
+                        {},
                     )
                     .get(
-                        'Code',
-                        ''
+                        "Code",
+                        "",
                     )
                 )
 
-                flight_num = (
-                    seg.get(
-                        'FlightNumber',
-                        ''
-                    )
+                flight_num = seg.get(
+                    "FlightNumber",
+                    "",
                 )
 
                 dep_apt = (
                     seg
                     .get(
-                        'DepartureAirport',
-                        {}
+                        "DepartureAirport",
+                        {},
                     )
                     .get(
-                        'LocationCode',
-                        ''
+                        "LocationCode",
+                        "",
                     )
                 )
 
                 arr_apt = (
                     seg
                     .get(
-                        'ArrivalAirport',
-                        {}
+                        "ArrivalAirport",
+                        {},
                     )
                     .get(
-                        'LocationCode',
-                        ''
+                        "LocationCode",
+                        "",
                     )
                 )
 
-                dep_time = (
-                    seg
-                    .get(
-                        'DepartureDateTime',
-                        ''
+                dep_time = str(
+                    seg.get(
+                        "DepartureDateTime",
+                        "",
                     )
-                    .replace(
-                        'T',
-                        ' à '
-                    )
+                ).replace(
+                    "T",
+                    " à ",
                 )
 
-                arr_time = (
-                    seg
-                    .get(
-                        'ArrivalDateTime',
-                        ''
+                arr_time = str(
+                    seg.get(
+                        "ArrivalDateTime",
+                        "",
                     )
-                    .replace(
-                        'T',
-                        ' à '
-                    )
+                ).replace(
+                    "T",
+                    " à ",
                 )
 
                 equipment = (
                     seg
                     .get(
-                        'Equipment',
-                        {}
+                        "Equipment",
+                        {},
                     )
                     .get(
-                        'AirEquipType',
-                        'N/A'
+                        "AirEquipType",
+                        "N/A",
                     )
                 )
 
-                booking_class = (
-                    seg.get(
-                        'ResBookDesigCode',
-                        'N/A'
-                    )
+                booking_class = seg.get(
+                    "ResBookDesigCode",
+                    "N/A",
                 )
 
-                elapsed_time = (
-                    seg.get(
-                        'ElapsedTime',
-                        'N/A'
-                    )
+                elapsed_time = seg.get(
+                    "ElapsedTime",
+                    "N/A",
                 )
 
                 lines.append(
@@ -2038,7 +1456,6 @@ class GdsSabreService(models.AbstractModel):
                     operating_airline
                     != marketing_airline
                 ):
-
                     lines.append(
                         f"   Opéré par : "
                         f"{operating_airline}"
@@ -2091,166 +1508,145 @@ class GdsSabreService(models.AbstractModel):
                 f"{global_base:.2f} {currency}"
             )
 
-            lines.append(
-                "• Tarifs passagers :"
-            )
-
             passenger_fares = (
                 self._extract_passenger_fares(
                     pricing
                 )
             )
 
-            calculated_total = 0.0
+            validation = (
+                self._validate_passenger_fares(
+                    passenger_fares,
+                    booking,
+                )
+            )
 
-            calculated_base = 0.0
+            passenger_totals = (
+                self._calculate_passenger_total(
+                    passenger_fares,
+                    booking,
+                )
+            )
 
-            calculated_taxes = 0.0
+            # ----------------------------------------------------
+            # AFFICHAGE DES TARIFS PASSAGERS
+            # ----------------------------------------------------
 
-            if passenger_fares:
+            if passenger_totals:
 
-                for fare in passenger_fares:
+                lines.append(
+                    "• Tarifs passagers :"
+                )
 
-                    code = fare['code']
+                for code, fare in (
+                    passenger_totals.items()
+                ):
 
-                    quantity = fare['quantity']
+                    if code == "ADT":
+                        passenger_name = "Adulte"
 
-                    base = fare['base']
+                    elif code == "CNN":
+                        passenger_name = "Enfant"
 
-                    taxes = fare['taxes']
-
-                    total = fare['total']
-
-                    # ------------------------------------------------
-                    # NOM PASSAGER
-                    # ------------------------------------------------
-
-                    if code == 'ADT':
-
-                        passenger_name = (
-                            "Adulte"
-                        )
-
-                    elif code == 'CNN':
-
-                        passenger_name = (
-                            "Enfant"
-                        )
-
-                    elif code == 'INF':
-
-                        passenger_name = (
-                            "Bébé"
-                        )
+                    elif code == "INF":
+                        passenger_name = "Bébé"
 
                     else:
-
-                        passenger_name = (
-                            code
-                        )
+                        passenger_name = code
 
                     lines.append(
-                        f"- {passenger_name} x {quantity} : "
-                        f"{total:.2f} {fare['currency']}"
+                        f"- {passenger_name} x "
+                        f"{fare['quantity']} : "
+                        f"{fare['total']:.2f} "
+                        f"{fare['currency']}"
                     )
 
                     lines.append(
                         f"  Base : "
-                        f"{base:.2f} "
+                        f"{fare['base']:.2f} "
                         f"{fare['currency']}"
                     )
 
                     lines.append(
                         f"  Taxes : "
-                        f"{taxes:.2f} "
+                        f"{fare['taxes']:.2f} "
                         f"{fare['currency']}"
                     )
 
-                    # ------------------------------------------------
-                    # TOTAL DU GROUPE DE PASSAGERS
-                    # ------------------------------------------------
-
-                    calculated_total += (
-                        total * quantity
-                    )
-
-                    calculated_base += (
-                        base * quantity
-                    )
-
-                    calculated_taxes += (
-                        taxes * quantity
-                    )
-
             else:
 
-                # ----------------------------------------------------
-                # PAS DE PTC
-                # ----------------------------------------------------
-
                 lines.append(
-                    "- Tarification détaillée "
-                    "par passager non fournie par Sabre."
-                )
-
-                calculated_total = (
-                    global_total
-                )
-
-                calculated_base = (
-                    global_base
+                    "• Tarification détaillée "
+                    "par passager non disponible."
                 )
 
             lines.append("")
 
             # ----------------------------------------------------
-            # TAXES GLOBALES
+            # PRIX TOTAL
             # ----------------------------------------------------
 
-            if calculated_taxes > 0:
+            if validation["valid"]:
+
+                final_total = sum(
+                    fare["total"]
+                    for fare in passenger_totals.values()
+                )
+
+                final_base = sum(
+                    fare["base"]
+                    for fare in passenger_totals.values()
+                )
+
+                final_taxes = sum(
+                    fare["taxes"]
+                    for fare in passenger_totals.values()
+                )
 
                 lines.append(
-                    f"• Taxes et frais globaux : "
-                    f"{calculated_taxes:.2f} "
-                    f"{currency}"
+                    f"• Base totale : "
+                    f"{final_base:.2f} {currency}"
+                )
+
+                lines.append(
+                    f"• Taxes totales : "
+                    f"{final_taxes:.2f} {currency}"
+                )
+
+                lines.append(
+                    f"🏷️ PRIX TOTAL TTC : "
+                    f"{final_total:.2f} {currency}"
                 )
 
             else:
 
                 lines.append(
-                    "• Taxes et frais globaux : "
-                    "0.00 "
+                    "⚠️ PRIX PASSAGERS INCOMPLET"
+                )
+
+                lines.append(
+                    "Sabre n'a pas retourné une "
+                    "tarification correspondant "
+                    "à tous les passagers demandés."
+                )
+
+                lines.append(
+                    "Passagers manquants : "
+                    + ", ".join(
+                        validation["missing"]
+                    )
+                )
+
+                lines.append(
+                    f"⚠️ Total global Sabre : "
+                    f"{global_total:.2f} "
                     f"{currency}"
                 )
 
-            lines.append("")
-
-            # ----------------------------------------------------
-            # TOTAL
-            # ----------------------------------------------------
-
-            # Si Sabre fournit plusieurs PTC,
-            # on utilise le calcul par passager.
-            #
-            # Sinon on conserve le TotalFare de Sabre.
-
-            if passenger_fares:
-
-                final_total = (
-                    calculated_total
+                lines.append(
+                    "Ce montant n'est pas présenté "
+                    "comme le prix final de la réservation."
                 )
-
-            else:
-
-                final_total = (
-                    global_total
-                )
-
-            lines.append(
-                f"🏷️ PRIX TOTAL TTC : "
-                f"{final_total:.2f} "
-                f"{currency}"
-            )
 
             lines.append("")
 
@@ -2269,11 +1665,10 @@ class GdsSabreService(models.AbstractModel):
     @api.model
     def fetch_pnr(
         self,
-        booking
+        booking,
     ):
 
         if not booking.pnr_code:
-
             raise UserError(
                 "Le code PNR est obligatoire."
             )
@@ -2282,41 +1677,19 @@ class GdsSabreService(models.AbstractModel):
             self.get_auth_token()
         )
 
-        get_param = (
-            self.env['ir.config_parameter']
-            .sudo()
-            .get_param
-        )
-
-        environment = get_param(
-            'api_gds.sabre_environment',
-            'test'
-        )
-
-        if environment == 'production':
-
-            base_url = (
-                "https://api.platform.sabre.com"
-            )
-
-        else:
-
-            base_url = (
-                "https://api.cert.platform.sabre.com"
-            )
+        config = self._get_sabre_config()
 
         endpoint = (
-            f"{base_url}/v1/trip/orders/getBooking/"
+            f"{config['base_url']}"
+            f"/v1/trip/orders/getBooking/"
             f"{booking.pnr_code}"
         )
 
         headers = {
-
-            'Authorization':
-                f'Bearer {access_token}',
-
-            'Accept':
-                'application/json',
+            "Authorization": (
+                f"Bearer {access_token}"
+            ),
+            "Accept": "application/json",
         }
 
         try:
@@ -2324,61 +1697,67 @@ class GdsSabreService(models.AbstractModel):
             response = requests.get(
                 endpoint,
                 headers=headers,
-                timeout=15
+                timeout=15,
             )
 
-            self._log_sabre_response(
-                response,
-                "RÉPONSE RÉCUPÉRATION PNR SABRE"
-            )
-
-            if response.status_code == 200:
-
-                raw_data = (
-                    response.json()
-                )
-
-                booking.flight_details = (
-                    json.dumps(
-                        raw_data,
-                        indent=4,
-                        ensure_ascii=False
-                    )
-                )
-
-                booking.state = (
-                    'confirmed'
-                )
-
-                return raw_data
-
-            raise UserError(
-                "Erreur GDS Sabre : "
-                f"{response.text}"
-            )
-
-        except UserError:
-
-            raise
-
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException as error:
 
             _logger.exception(
-                "Erreur réseau Sabre"
+                "Erreur réseau pendant "
+                "la récupération du PNR."
             )
 
             raise UserError(
                 "Erreur réseau Sabre : "
-                f"{str(e)}"
+                f"{error}"
             )
 
-        except Exception as e:
+        if response.status_code != 200:
 
-            _logger.exception(
-                "Erreur récupération PNR"
+            try:
+                error_data = response.json()
+
+                error_text = json.dumps(
+                    error_data,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+
+            except ValueError:
+
+                error_text = response.text
+
+            _logger.error(
+                "Erreur récupération PNR "
+                "HTTP %s : %s",
+                response.status_code,
+                error_text,
             )
 
             raise UserError(
-                "Erreur récupération PNR : "
-                f"{str(e)}"
+                "Erreur GDS Sabre :\n"
+                f"{error_text}"
             )
+
+        try:
+
+            raw_data = response.json()
+
+        except ValueError:
+
+            raise UserError(
+                "Sabre a retourné un JSON "
+                "invalide pour le PNR."
+            )
+
+        booking.flight_details = (
+            json.dumps(
+                raw_data,
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+
+        booking.state = "confirmed"
+
+        return raw_data
