@@ -100,8 +100,6 @@ class GdsSabreService(models.AbstractModel):
             f"{base_url}/v2/auth/token"
         )
 
-        # Sabre utilise les valeurs encodées
-        # dans les credentials Basic Auth.
         client_id_b64 = (
             base64.b64encode(
                 client_id.encode("utf-8")
@@ -224,13 +222,11 @@ class GdsSabreService(models.AbstractModel):
         )
 
         mapping = {
-
             "ECONOMY": "Y",
             "ECONOMIC": "Y",
             "ECONOMIQUE": "Y",
             "ÉCONOMIQUE": "Y",
             "Y": "Y",
-
             "PREMIUM_ECONOMY": "S",
             "PREMIUM ECONOMY": "S",
             "PREMIUM-ECONOMY": "S",
@@ -238,13 +234,11 @@ class GdsSabreService(models.AbstractModel):
             "PREMIUM_ECONOMIC": "S",
             "PREMIUM ECONOMIC": "S",
             "S": "S",
-
             "BUSINESS": "C",
             "BUSINESS CLASS": "C",
             "BUSINESS_CLASS": "C",
             "AFFAIRES": "C",
             "C": "C",
-
             "FIRST": "F",
             "FIRST CLASS": "F",
             "FIRST_CLASS": "F",
@@ -579,17 +573,17 @@ class GdsSabreService(models.AbstractModel):
                     f"retourné {returned_quantity}"
                 )
 
-        # On considère la validation souple si au moins les adultes sont présents
         has_adults = returned.get("ADT", 0) > 0
 
         return {
-            "valid": has_adults,  # Valide dès qu'on a un tarif de base adulte
+            "valid": has_adults,
             "requested": requested,
             "returned": returned,
             "missing": missing,
         }
+
     # ============================================================
-    # CALCUL TARIF
+    # CALCUL TARIF (MODIFIÉ POUR ENFANTS ET BÉBÉS)
     # ============================================================
 
     @api.model
@@ -604,50 +598,79 @@ class GdsSabreService(models.AbstractModel):
             )
         )
 
-        # Récupération du tarif unitaire Adulte de référence
-        adt_fare = next(
-            (f for f in passenger_fares if f["code"] == "ADT"),
-            None
-        )
+        fare_by_code = {f["code"]: f for f in passenger_fares}
+        
+        adt_fare = fare_by_code.get("ADT")
+        cnn_fare = fare_by_code.get("CNN")
+        inf_fare = fare_by_code.get("INF")
 
-        totals = {}
-
-        # S'il y a un tarif adulte de base, on s'en sert pour extrapoler s'il manque des données
         base_unit_total = (adt_fare["total"] / adt_fare["quantity"]) if adt_fare and adt_fare["quantity"] > 0 else 0.0
         base_unit_base = (adt_fare["base"] / adt_fare["quantity"]) if adt_fare and adt_fare["quantity"] > 0 else 0.0
         base_unit_taxes = (adt_fare["taxes"] / adt_fare["quantity"]) if adt_fare and adt_fare["quantity"] > 0 else 0.0
         currency = adt_fare["currency"] if adt_fare else "USD"
 
-        # Calcul pour les Adultes
+        totals = {}
+
+        # Calcul Adultes (ADT)
         adt_qty = requested.get("ADT", 1)
+        if adt_fare and adt_fare["quantity"] > 0:
+            unit_t = adt_fare["total"] / adt_fare["quantity"]
+            unit_b = adt_fare["base"] / adt_fare["quantity"]
+            unit_x = adt_fare["taxes"] / adt_fare["quantity"]
+            curr = adt_fare["currency"]
+        else:
+            unit_t, unit_b, unit_x, curr = base_unit_total, base_unit_base, base_unit_taxes, currency
+
         totals["ADT"] = {
             "quantity": adt_qty,
-            "total": base_unit_total * adt_qty,
-            "base": base_unit_base * adt_qty,
-            "taxes": base_unit_taxes * adt_qty,
-            "currency": currency,
+            "total": unit_t * adt_qty,
+            "base": unit_b * adt_qty,
+            "taxes": unit_x * adt_qty,
+            "currency": curr,
         }
 
-        # Calcul pour les Enfants (CNN) - Application d'un ratio de 75% si non retourné par Sabre
+        # Calcul Enfants (CNN)
         cnn_qty = requested.get("CNN", 0)
         if cnn_qty > 0:
+            if cnn_fare and cnn_fare["quantity"] > 0:
+                cnn_t = cnn_fare["total"] / cnn_fare["quantity"]
+                cnn_b = cnn_fare["base"] / cnn_fare["quantity"]
+                cnn_x = cnn_fare["taxes"] / cnn_fare["quantity"]
+                cnn_curr = cnn_fare["currency"]
+            else:
+                cnn_t = base_unit_total * 0.75
+                cnn_b = base_unit_base * 0.75
+                cnn_x = base_unit_taxes
+                cnn_curr = currency
+
             totals["CNN"] = {
                 "quantity": cnn_qty,
-                "total": base_unit_total * 0.75 * cnn_qty,
-                "base": base_unit_base * 0.75 * cnn_qty,
-                "taxes": base_unit_taxes * cnn_qty,
-                "currency": currency,
+                "total": cnn_t * cnn_qty,
+                "base": cnn_b * cnn_qty,
+                "taxes": cnn_x * cnn_qty,
+                "currency": cnn_curr,
             }
 
-        # Calcul pour les Bébés (INF) - Application d'un ratio de 10% si non retourné par Sabre
+        # Calcul Bébés (INF)
         inf_qty = requested.get("INF", 0)
         if inf_qty > 0:
+            if inf_fare and inf_fare["quantity"] > 0:
+                inf_t = inf_fare["total"] / inf_fare["quantity"]
+                inf_b = inf_fare["base"] / inf_fare["quantity"]
+                inf_x = inf_fare["taxes"] / inf_fare["quantity"]
+                inf_curr = inf_fare["currency"]
+            else:
+                inf_t = base_unit_total * 0.10
+                inf_b = base_unit_base * 0.10
+                inf_x = 0.0
+                inf_curr = currency
+
             totals["INF"] = {
                 "quantity": inf_qty,
-                "total": base_unit_total * 0.10 * inf_qty,
-                "base": base_unit_base * 0.10 * inf_qty,
-                "taxes": 0.0,
-                "currency": currency,
+                "total": inf_t * inf_qty,
+                "base": inf_b * inf_qty,
+                "taxes": inf_x * inf_qty,
+                "currency": inf_curr,
             }
 
         return totals
@@ -661,10 +684,6 @@ class GdsSabreService(models.AbstractModel):
         self,
         booking,
     ):
-
-        # --------------------------------------------------------
-        # VALIDATION
-        # --------------------------------------------------------
 
         if not booking.origin_code:
             raise UserError(
@@ -681,10 +700,6 @@ class GdsSabreService(models.AbstractModel):
                 "La date de départ est obligatoire."
             )
 
-        # --------------------------------------------------------
-        # AUTHENTIFICATION
-        # --------------------------------------------------------
-
         access_token = (
             self.get_auth_token()
         )
@@ -695,19 +710,11 @@ class GdsSabreService(models.AbstractModel):
             f"{config['base_url']}/v2/shop/flights"
         )
 
-        # --------------------------------------------------------
-        # PASSAGERS
-        # --------------------------------------------------------
-
         passengers = (
             self._get_requested_passengers(
                 booking
             )
         )
-
-        # --------------------------------------------------------
-        # PARAMÈTRES
-        # --------------------------------------------------------
 
         params = {
             "origin": (
@@ -715,23 +722,16 @@ class GdsSabreService(models.AbstractModel):
                 .strip()
                 .upper()
             ),
-
             "destination": (
                 booking.destination_code
                 .strip()
                 .upper()
             ),
-
             "departuredate": str(
                 booking.departure_date
             ),
-
             "adt": passengers["ADT"],
         }
-
-        # --------------------------------------------------------
-        # RETOUR
-        # --------------------------------------------------------
 
         if (
             booking.trip_type == "round_trip"
@@ -751,29 +751,13 @@ class GdsSabreService(models.AbstractModel):
                 booking.return_date
             )
 
-        # --------------------------------------------------------
-        # ENFANTS
-        # --------------------------------------------------------
-
         if passengers["CNN"] > 0:
             params["cnn"] = passengers["CNN"]
-
-        # --------------------------------------------------------
-        # BÉBÉS
-        # --------------------------------------------------------
 
         if passengers["INF"] > 0:
             params["inf"] = passengers["INF"]
 
-        # --------------------------------------------------------
-        # VENTILATION DES TARIFS PASSAGERS
-        # --------------------------------------------------------
-
         params["includePassengerTypeBreakdown"] = "true"
-
-        # --------------------------------------------------------
-        # CABINE
-        # --------------------------------------------------------
 
         if booking.cabin_class:
 
@@ -802,10 +786,6 @@ class GdsSabreService(models.AbstractModel):
             "Accept": "application/json",
         }
 
-        # --------------------------------------------------------
-        # APPEL API
-        # --------------------------------------------------------
-
         try:
 
             response = requests.get(
@@ -825,10 +805,6 @@ class GdsSabreService(models.AbstractModel):
                 "Erreur réseau Sabre : "
                 f"{error}"
             )
-
-        # --------------------------------------------------------
-        # ERREUR HTTP
-        # --------------------------------------------------------
 
         if response.status_code != 200:
 
@@ -859,10 +835,6 @@ class GdsSabreService(models.AbstractModel):
 
             return booking.flight_details
 
-        # --------------------------------------------------------
-        # JSON
-        # --------------------------------------------------------
-
         try:
 
             raw_data = response.json()
@@ -873,10 +845,6 @@ class GdsSabreService(models.AbstractModel):
                 "Sabre a retourné un JSON invalide."
             )
 
-        # --------------------------------------------------------
-        # FILTRE CABINE
-        # --------------------------------------------------------
-
         filtered_data = (
             self._apply_cabin_filter(
                 raw_data,
@@ -884,20 +852,12 @@ class GdsSabreService(models.AbstractModel):
             )
         )
 
-        # --------------------------------------------------------
-        # FILTRE COMPAGNIE
-        # --------------------------------------------------------
-
         filtered_data = (
             self._apply_airline_filter(
                 filtered_data,
                 booking,
             )
         )
-
-        # --------------------------------------------------------
-        # FORMATAGE
-        # --------------------------------------------------------
 
         formatted_output = (
             self._format_traveler_itinerary(
@@ -911,6 +871,7 @@ class GdsSabreService(models.AbstractModel):
         )
 
         return formatted_output
+
     # ============================================================
     # FILTRE CABINE
     # ============================================================
@@ -1157,7 +1118,7 @@ class GdsSabreService(models.AbstractModel):
         return data
 
     # ============================================================
-    # FORMATAGE DES VOLS
+    # FORMATAGE DES VOLS - AFFICHAGE PLEINE LARGEUR
     # ============================================================
 
     @api.model
@@ -1166,499 +1127,917 @@ class GdsSabreService(models.AbstractModel):
         data,
         booking,
     ):
+        itineraries = data.get("PricedItineraries", [])
+        passengers = self._get_requested_passengers(booking)
 
-        itineraries = data.get(
-            "PricedItineraries",
-            [],
-        )
-
-        passengers = (
-            self._get_requested_passengers(
-                booking
-            )
-        )
+        # ============================================================
+        # AUCUN VOL
+        # ============================================================
 
         if not itineraries:
+            return """
+                <div style="
+                    width: 100%;
+                    box-sizing: border-box;
+                    padding: 20px;
+                    text-align: center;
+                    background-color: #fff3cd;
+                    color: #856404;
+                    border-radius: 8px;
+                    border: 1px solid #ffeeba;
+                ">
+                    <p style="
+                        margin: 0;
+                        font-size: 1.1em;
+                    ">
+                        ✈️ Aucun vol ne correspond aux critères de recherche.
+                    </p>
+                </div>
+            """
 
-            return (
-                "✈️ Aucun vol ne correspond "
-                "aux critères de recherche."
+        # ============================================================
+        # CONTENEUR PRINCIPAL
+        # ============================================================
+
+        html = ["""
+            <div style="
+                font-family: -apple-system, BlinkMacSystemFont,
+                            'Segoe UI', Roboto, 'Helvetica Neue',
+                            Arial, sans-serif;
+                color: #333;
+                width: 100%;
+                max-width: none;
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            ">
+        """]
+
+        # ============================================================
+        # RÉSUMÉ DES PASSAGERS
+        # ============================================================
+
+        html.append("""
+            <div style="
+                background: #f1f3f5;
+                padding: 15px 20px;
+                border-radius: 6px;
+                margin-bottom: 25px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                box-sizing: border-box;
+            ">
+
+                <h3 style="
+                    margin: 0;
+                    font-size: 1.1em;
+                    color: #495057;
+                ">
+                    👥 Passagers recherchés
+                </h3>
+
+                <div style="
+                    font-size: 1em;
+                    color: #212529;
+                ">
+        """)
+
+        pass_summary = []
+
+        if passengers["ADT"] > 0:
+            pass_summary.append(
+                f"<strong>{passengers['ADT']}</strong> Adulte(s)"
             )
 
-        lines = []
+        if passengers["CNN"] > 0:
+            pass_summary.append(
+                f"<strong>{passengers['CNN']}</strong> Enfant(s)"
+            )
 
-        # --------------------------------------------------------
-        # PASSAGERS
-        # --------------------------------------------------------
+        if passengers["INF"] > 0:
+            pass_summary.append(
+                f"<strong>{passengers['INF']}</strong> Bébé(s)"
+            )
 
-        lines.append(
-            "👥 PASSAGERS :"
-        )
+        html.append(" &nbsp; | &nbsp; ".join(pass_summary))
 
-        lines.append(
-            f"• Adultes : {passengers['ADT']}"
-        )
+        html.append("""
+                </div>
+            </div>
+        """)
 
-        lines.append(
-            f"• Enfants : {passengers['CNN']}"
-        )
+        # ============================================================
+        # OPTIONS DE VOL
+        # ============================================================
 
-        lines.append(
-            f"• Bébés : {passengers['INF']}"
-        )
-
-        lines.append("")
-
-        # --------------------------------------------------------
-        # ITINÉRAIRES
-        # --------------------------------------------------------
-
-        for idx, itinerary in enumerate(
-            itineraries,
-            1,
-        ):
+        for idx, itinerary in enumerate(itineraries, 1):
 
             air_itin = itinerary.get(
                 "AirItinerary",
-                {},
+                {}
             )
 
             pricing = itinerary.get(
                 "AirItineraryPricingInfo",
-                {},
+                {}
             )
 
-            itin_total_fare = (
-                pricing.get(
-                    "ItinTotalFare",
-                    {},
-                )
+            # ========================================================
+            # PRIX GLOBAL
+            # ========================================================
+
+            itin_total = pricing.get(
+                "ItinTotalFare",
+                {}
             )
 
-            total_fare_info = (
-                itin_total_fare.get(
-                    "TotalFare",
-                    {},
-                )
+            global_total = itin_total.get(
+                "TotalFare",
+                {}
             )
 
-            base_fare_info = (
-                itin_total_fare.get(
-                    "BaseFare",
-                    {},
-                )
+            global_base = itin_total.get(
+                "BaseFare",
+                {}
             )
 
-            global_total = self._to_float(
-                total_fare_info.get(
-                    "Amount",
-                    0,
-                )
+            global_taxes = itin_total.get(
+                "Taxes",
+                {}
             )
 
-            global_base = self._to_float(
-                base_fare_info.get(
-                    "Amount",
-                    0,
-                )
+            global_total_amount = self._to_float(
+                global_total.get("Amount", 0)
             )
 
-            currency = (
-                total_fare_info.get(
-                    "CurrencyCode"
-                )
-                or base_fare_info.get(
-                    "CurrencyCode"
-                )
+            global_base_amount = self._to_float(
+                global_base.get("Amount", 0)
+            )
+
+            global_tax_amount = self._to_float(
+                global_taxes.get("Amount", 0)
+            )
+
+            global_currency = (
+                global_total.get("CurrencyCode")
+                or global_base.get("CurrencyCode")
                 or "USD"
             )
 
-            # ----------------------------------------------------
+            # ========================================================
             # SEGMENTS
-            # ----------------------------------------------------
+            # ========================================================
 
-            options_dest = (
-                air_itin
-                .get(
-                    "OriginDestinationOptions",
-                    {},
-                )
-                .get(
-                    "OriginDestinationOption",
-                    [],
-                )
+            options_dest = air_itin.get(
+                "OriginDestinationOptions",
+                {}
+            ).get(
+                "OriginDestinationOption",
+                []
             )
 
-            if isinstance(
-                options_dest,
-                dict,
-            ):
-                options_dest = [
-                    options_dest
-                ]
+            if isinstance(options_dest, dict):
+                options_dest = [options_dest]
 
             all_segments = []
 
             for od in options_dest:
 
-                segments = od.get(
+                segs = od.get(
                     "FlightSegment",
-                    [],
+                    []
                 )
 
-                if isinstance(
-                    segments,
-                    dict,
-                ):
-                    segments = [
-                        segments
-                    ]
+                if isinstance(segs, dict):
+                    all_segments.append(segs)
+                else:
+                    all_segments.extend(segs)
 
-                all_segments.extend(
-                    segments
-                )
+            nb_escales = len(all_segments) - 1
 
-            number_of_segments = len(
-                all_segments
+            escale_text = (
+                "Vol direct"
+                if nb_escales == 0
+                else f"{nb_escales} escale(s)"
             )
 
-            if number_of_segments <= 1:
-                flight_type = "Vol direct"
-            else:
-                flight_type = (
-                    f"{number_of_segments - 1} escale(s)"
+            # ========================================================
+            # CARTE OPTION
+            # ========================================================
+
+            html.append("""
+                <div style="
+                    background: #ffffff;
+                    border: 1px solid #e0e0e0;
+                    padding: 25px;
+                    margin-bottom: 30px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+                    width: 100%;
+                    max-width: none;
+                    box-sizing: border-box;
+                ">
+            """)
+
+            # ========================================================
+            # TITRE OPTION
+            # ========================================================
+
+            html.append(f"""
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 2px solid #f1f3f5;
+                    padding-bottom: 12px;
+                    margin-bottom: 20px;
+                ">
+
+                    <h2 style="
+                        margin: 0;
+                        font-size: 1.3em;
+                        color: #1a73e8;
+                    ">
+                        ✈️ Option de vol N° {idx}
+                    </h2>
+
+                    <span style="
+                        background: #e8f0fe;
+                        color: #1a73e8;
+                        padding: 5px 12px;
+                        border-radius: 12px;
+                        font-size: 0.9em;
+                        font-weight: 600;
+                    ">
+                        {escale_text}
+                    </span>
+
+                </div>
+            """)
+
+            # ========================================================
+            # TABLEAU DES SEGMENTS - 8 COLONNES
+            # ========================================================
+
+            html.append("""
+                <div style="
+                    width: 100%;
+                    overflow-x: auto;
+                    margin-bottom: 20px;
+                ">
+
+                    <table style="
+                        width: 100%;
+                        min-width: 1100px;
+                        border-collapse: collapse;
+                        font-size: 0.90em;
+                        table-layout: auto;
+                    ">
+
+                        <thead>
+
+                            <tr style="
+                                background-color: #f8f9fa;
+                                color: #495057;
+                                text-align: left;
+                            ">
+
+                                <th style="
+                                    padding: 12px;
+                                    white-space: nowrap;
+                                ">
+                                    Vol
+                                </th>
+
+                                <th style="
+                                    padding: 12px;
+                                    white-space: nowrap;
+                                ">
+                                    Trajet
+                                </th>
+
+                                <th style="
+                                    padding: 12px;
+                                    white-space: nowrap;
+                                ">
+                                    Départ
+                                </th>
+
+                                <th style="
+                                    padding: 12px;
+                                    white-space: nowrap;
+                                ">
+                                    Arrivée
+                                </th>
+
+                                <th style="
+                                    padding: 12px;
+                                    white-space: nowrap;
+                                ">
+                                    Classe
+                                </th>
+
+                                <th style="
+                                    padding: 12px;
+                                    white-space: nowrap;
+                                ">
+                                    Appareil
+                                </th>
+
+                                <th style="
+                                    padding: 12px;
+                                    white-space: nowrap;
+                                ">
+                                    Durée
+                                </th>
+
+                                <th style="
+                                    padding: 12px;
+                                    white-space: nowrap;
+                                ">
+                                    Opéré par
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+            """)
+
+            # ========================================================
+            # LIGNES DES SEGMENTS
+            # ========================================================
+
+            for seg in all_segments:
+
+                marketing_airline = seg.get(
+                    "MarketingAirline",
+                    {}
+                ).get(
+                    "Code",
+                    ""
                 )
 
-            lines.append(
-                f"## 🔹 OPTION DE VOL N° {idx}"
-            )
-
-            lines.append("")
-
-            lines.append(
-                f"✈️ Type de vol : {flight_type}"
-            )
-
-            lines.append("")
-
-            # ----------------------------------------------------
-            # SEGMENTS
-            # ----------------------------------------------------
-
-            for segment_counter, seg in enumerate(
-                all_segments,
-                1,
-            ):
-
-                marketing_airline = (
-                    seg
-                    .get(
-                        "MarketingAirline",
-                        {},
-                    )
-                    .get(
-                        "Code",
-                        "",
-                    )
+                operating_airline = seg.get(
+                    "OperatingAirline",
+                    {}
+                ).get(
+                    "Code",
+                    ""
                 )
 
-                operating_airline = (
-                    seg
-                    .get(
-                        "OperatingAirline",
-                        {},
-                    )
-                    .get(
-                        "Code",
-                        "",
-                    )
-                )
-
-                flight_num = seg.get(
+                flight_number = seg.get(
                     "FlightNumber",
-                    "",
+                    ""
                 )
 
-                dep_apt = (
-                    seg
-                    .get(
-                        "DepartureAirport",
-                        {},
-                    )
-                    .get(
-                        "LocationCode",
-                        "",
-                    )
+                departure = seg.get(
+                    "DepartureAirport",
+                    {}
+                ).get(
+                    "LocationCode",
+                    ""
                 )
 
-                arr_apt = (
-                    seg
-                    .get(
-                        "ArrivalAirport",
-                        {},
-                    )
-                    .get(
-                        "LocationCode",
-                        "",
-                    )
+                arrival = seg.get(
+                    "ArrivalAirport",
+                    {}
+                ).get(
+                    "LocationCode",
+                    ""
                 )
 
-                dep_time = str(
+                departure_datetime = str(
                     seg.get(
                         "DepartureDateTime",
-                        "",
+                        ""
                     )
                 ).replace(
                     "T",
-                    " à ",
+                    " "
                 )
 
-                arr_time = str(
+                arrival_datetime = str(
                     seg.get(
                         "ArrivalDateTime",
-                        "",
+                        ""
                     )
                 ).replace(
                     "T",
-                    " à ",
-                )
-
-                equipment = (
-                    seg
-                    .get(
-                        "Equipment",
-                        {},
-                    )
-                    .get(
-                        "AirEquipType",
-                        "N/A",
-                    )
+                    " "
                 )
 
                 booking_class = seg.get(
                     "ResBookDesigCode",
-                    "N/A",
+                    ""
                 )
 
-                elapsed_time = seg.get(
-                    "ElapsedTime",
-                    "N/A",
-                )
-
-                lines.append(
-                    f"✈️ Segment {segment_counter} : "
-                    f"{marketing_airline} {flight_num}"
-                )
-
-                if (
-                    operating_airline
-                    and
-                    operating_airline
-                    != marketing_airline
-                ):
-                    lines.append(
-                        f"   Opéré par : "
-                        f"{operating_airline}"
+                equipment = (
+                    seg.get(
+                        "Equipment",
+                        {}
+                    ).get(
+                        "AirEquipType",
+                        ""
                     )
-
-                lines.append(
-                    f"   📍 Trajet : "
-                    f"{dep_apt} ➔ {arr_apt}"
+                    or
+                    seg.get(
+                        "Equipment",
+                        {}
+                    ).get(
+                        "Code",
+                        ""
+                    )
                 )
 
-                lines.append(
-                    f"   🕒 Départ : "
-                    f"{dep_time}"
+                duration = seg.get(
+                    "JourneyDuration",
+                    seg.get(
+                        "ElapsedTime",
+                        ""
+                    )
                 )
 
-                lines.append(
-                    f"   🕒 Arrivée : "
-                    f"{arr_time}"
-                )
+                # ====================================================
+                # UNE SEULE LIGNE / 8 COLONNES
+                # ====================================================
 
-                lines.append(
-                    f"   ⏱️ Durée : "
-                    f"{elapsed_time} minutes"
-                )
+                html.append(f"""
+                    <tr style="
+                        border-bottom: 1px solid #f1f3f5;
+                        vertical-align: middle;
+                    ">
 
-                lines.append(
-                    f"   💺 Classe : "
-                    f"{booking_class}"
-                )
+                        <!-- 1. VOL -->
+                        <td style="
+                            padding: 14px 12px;
+                            white-space: nowrap;
+                        ">
+                            <strong>
+                                {marketing_airline} {flight_number}
+                            </strong>
+                        </td>
 
-                lines.append(
-                    f"   ✈️ Appareil : "
-                    f"{equipment}"
-                )
+                        <!-- 2. TRAJET -->
+                        <td style="
+                            padding: 14px 12px;
+                            white-space: nowrap;
+                        ">
+                            
+                            <strong>{departure}</strong>
+                            &nbsp;➜&nbsp;
+                            <strong>{arrival}</strong>
+                        </td>
 
-                lines.append("")
+                        <!-- 3. DÉPART -->
+                        <td style="
+                            padding: 14px 12px;
+                            color: #495057;
+                            white-space: nowrap;
+                        ">
+                             {departure_datetime}
+                        </td>
 
-            # ----------------------------------------------------
-            # TARIFICATION
-            # ----------------------------------------------------
+                        <!-- 4. ARRIVÉE -->
+                        <td style="
+                            padding: 14px 12px;
+                            color: #495057;
+                            white-space: nowrap;
+                        ">
+                             {arrival_datetime}
+                        </td>
 
-            lines.append(
-                "💵 DÉTAIL DU TARIF :"
+                        <!-- 5. CLASSE -->
+                        <td style="
+                            padding: 14px 12px;
+                            white-space: nowrap;
+                        ">
+                            
+                            <strong>
+                                {booking_class or 'N/A'}
+                            </strong>
+                        </td>
+
+                        <!-- 6. APPAREIL -->
+                        <td style="
+                            padding: 14px 12px;
+                            white-space: nowrap;
+                        ">
+                            
+                        {equipment or 'N/A'}
+                        </td>
+
+                        <!-- 7. DURÉE -->
+                        <td style="
+                            padding: 14px 12px;
+                            white-space: nowrap;
+                        ">
+                        {duration or 'N/A'} min
+                        </td>
+
+                        <!-- 8. OPÉRÉ PAR -->
+                        <td style="
+                            padding: 14px 12px;
+                            white-space: nowrap;
+                        ">
+                            
+                            {operating_airline or 'N/A'}
+                        </td>
+
+                    </tr>
+                """)
+
+            html.append("""
+                        </tbody>
+
+                    </table>
+
+                </div>
+            """)
+
+            # ========================================================
+            # CALCUL DES TARIFS
+            # ========================================================
+
+            passenger_fares = self._extract_passenger_fares(
+                pricing
             )
 
-            lines.append("")
-
-            lines.append(
-                f"• Tarif de base global : "
-                f"{global_base:.2f} {currency}"
+            passenger_totals = self._calculate_passenger_total(
+                passenger_fares,
+                booking
             )
 
-            passenger_fares = (
-                self._extract_passenger_fares(
-                    pricing
+            validation = self._validate_passenger_fares(
+                passenger_fares,
+                booking
+            )
+
+            # ========================================================
+            # CONTRÔLE PASSAGERS + RÉCAPITULATIF
+            # ========================================================
+
+            html.append("""
+                <div style="
+                    display: flex;
+                    gap: 20px;
+                    margin-bottom: 20px;
+                    width: 100%;
+                    box-sizing: border-box;
+                ">
+            """)
+
+            # --------------------------------------------------------
+            # CONTRÔLE PASSAGERS
+            # --------------------------------------------------------
+
+            html.append("""
+                <div style="
+                    flex: 1;
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 6px;
+                    border-left: 4px solid #17a2b8;
+                    font-size: 0.95em;
+                    box-sizing: border-box;
+                ">
+
+                    <strong style="
+                        color: #17a2b8;
+                    ">
+                        👥 Contrôle des passagers
+                    </strong>
+
+                    <br/><br/>
+            """)
+
+            for code in ["ADT", "CNN", "INF"]:
+
+                requested_qty = validation[
+                    "requested"
+                ].get(
+                    code,
+                    0
                 )
-            )
 
-            validation = (
-                self._validate_passenger_fares(
-                    passenger_fares,
-                    booking,
+                if requested_qty <= 0:
+                    continue
+
+                returned_qty = validation[
+                    "returned"
+                ].get(
+                    code,
+                    0
                 )
-            )
 
-            passenger_totals = (
-                self._calculate_passenger_total(
-                    passenger_fares,
-                    booking,
+                passenger_name = {
+                    "ADT": "Adultes",
+                    "CNN": "Enfants",
+                    "INF": "Bébés",
+                }.get(
+                    code,
+                    code
                 )
-            )
 
-            # ----------------------------------------------------
-            # AFFICHAGE DES TARIFS PASSAGERS
-            # ----------------------------------------------------
+                html.append(
+                    f"""
+                        • {passenger_name} :
+                        demandé <strong>{requested_qty}</strong>
+                        |
+                        tarifé <strong>{returned_qty}</strong>
+                        <br/>
+                    """
+                )
+
+            html.append("""
+                </div>
+            """)
+
+            # --------------------------------------------------------
+            # RÉCAPITULATIF GLOBAL SABRE
+            # --------------------------------------------------------
+
+            html.append(f"""
+                <div style="
+                    flex: 1;
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 6px;
+                    border-left: 4px solid #6c757d;
+                    font-size: 0.95em;
+                    box-sizing: border-box;
+                ">
+
+                    <strong style="
+                        color: #495057;
+                    ">
+                        💰 Récapitulatif Global Sabre
+                    </strong>
+
+                    <br/><br/>
+
+                    • Base globale :
+                    <strong>
+                        {global_base_amount:.2f}
+                        {global_currency}
+                    </strong>
+
+                    <br/>
+
+                    • Taxes globales :
+                    <strong>
+                        {global_tax_amount:.2f}
+                        {global_currency}
+                    </strong>
+
+                    <br/>
+
+                    • Total global :
+                    <strong>
+                        {global_total_amount:.2f}
+                        {global_currency}
+                    </strong>
+
+                </div>
+            """)
+
+            html.append("""
+                </div>
+            """)
+
+            # ========================================================
+            # DÉTAIL PAR TYPE DE PASSAGER
+            # ========================================================
 
             if passenger_totals:
 
-                lines.append(
-                    "• Tarifs passagers :"
-                )
+                html.append("""
+                    <h4 style="
+                        margin: 20px 0 10px 0;
+                        font-size: 1.05em;
+                        color: #495057;
+                    ">
+                        💵 Détail par type de passager
+                    </h4>
 
-                for code, fare in (
-                    passenger_totals.items()
-                ):
+                    <div style="
+                        width: 100%;
+                        overflow-x: auto;
+                    ">
 
-                    if code == "ADT":
-                        passenger_name = "Adulte"
+                        <table style="
+                            width: 100%;
+                            border-collapse: collapse;
+                            font-size: 0.95em;
+                        ">
 
-                    elif code == "CNN":
-                        passenger_name = "Enfant"
+                            <thead>
 
-                    elif code == "INF":
-                        passenger_name = "Bébé"
+                                <tr style="
+                                    background-color: #f1f3f5;
+                                    color: #495057;
+                                    text-align: left;
+                                ">
 
-                    else:
-                        passenger_name = code
+                                    <th style="padding: 10px;">
+                                        Type
+                                    </th>
 
-                    lines.append(
-                        f"- {passenger_name} x "
-                        f"{fare['quantity']} : "
-                        f"{fare['total']:.2f} "
-                        f"{fare['currency']}"
+                                    <th style="
+                                        padding: 10px;
+                                        text-align: center;
+                                    ">
+                                        Qté
+                                    </th>
+
+                                    <th style="
+                                        padding: 10px;
+                                        text-align: right;
+                                    ">
+                                        Base unitaire
+                                    </th>
+
+                                    <th style="
+                                        padding: 10px;
+                                        text-align: right;
+                                    ">
+                                        Taxes unitaires
+                                    </th>
+
+                                    <th style="
+                                        padding: 10px;
+                                        text-align: right;
+                                    ">
+                                        Total
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+                """)
+
+                for code, fare in passenger_totals.items():
+
+                    name = {
+                        "ADT": "Adulte",
+                        "CNN": "Enfant",
+                        "INF": "Bébé",
+                    }.get(
+                        code,
+                        code
                     )
 
-                    lines.append(
-                        f"  Base : "
-                        f"{fare['base']:.2f} "
-                        f"{fare['currency']}"
-                    )
+                    quantity = fare["quantity"]
 
-                    lines.append(
-                        f"  Taxes : "
-                        f"{fare['taxes']:.2f} "
-                        f"{fare['currency']}"
-                    )
+                    html.append(f"""
+                        <tr style="
+                            border-bottom: 1px solid #f1f3f5;
+                        ">
 
-            else:
+                            <td style="padding: 10px;">
+                                {name}
+                            </td>
 
-                lines.append(
-                    "• Tarification détaillée "
-                    "par passager non disponible."
-                )
+                            <td style="
+                                padding: 10px;
+                                text-align: center;
+                            ">
+                                {quantity}
+                            </td>
 
-            lines.append("")
+                            <td style="
+                                padding: 10px;
+                                text-align: right;
+                            ">
+                                {fare['base'] / quantity:.2f}
+                            </td>
 
-            # ----------------------------------------------------
-            # PRIX TOTAL
-            # ----------------------------------------------------
+                            <td style="
+                                padding: 10px;
+                                text-align: right;
+                            ">
+                                {fare['taxes'] / quantity:.2f}
+                            </td>
+
+                            <td style="
+                                padding: 10px;
+                                text-align: right;
+                            ">
+                                <strong>
+                                    {fare['total']:.2f}
+                                    {fare['currency']}
+                                </strong>
+                            </td>
+
+                        </tr>
+                    """)
+
+                html.append("""
+                            </tbody>
+
+                        </table>
+
+                    </div>
+                """)
+
+            # ========================================================
+            # PRIX TOTAL FINAL
+            # ========================================================
 
             if validation["valid"]:
 
                 final_total = sum(
-                    fare["total"]
-                    for fare in passenger_totals.values()
+                    f["total"]
+                    for f in passenger_totals.values()
                 )
 
-                final_base = sum(
-                    fare["base"]
-                    for fare in passenger_totals.values()
+                curr = passenger_totals.get(
+                    "ADT",
+                    {}
+                ).get(
+                    "currency",
+                    "USD"
                 )
 
-                final_taxes = sum(
-                    fare["taxes"]
-                    for fare in passenger_totals.values()
-                )
+                html.append(f"""
+                    <div style="
+                        background: #e6f4ea;
+                        border: 1px solid #ceead6;
+                        padding: 15px 20px;
+                        border-radius: 6px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-top: 20px;
+                        width: 100%;
+                        box-sizing: border-box;
+                    ">
 
-                lines.append(
-                    f"• Base totale : "
-                    f"{final_base:.2f} {currency}"
-                )
+                        <span style="
+                            color: #137333;
+                            font-weight: 600;
+                            font-size: 1.1em;
+                        ">
+                            🏷️ PRIX TOTAL TTC
+                        </span>
 
-                lines.append(
-                    f"• Taxes totales : "
-                    f"{final_taxes:.2f} {currency}"
-                )
+                        <span style="
+                            color: #137333;
+                            font-size: 1.3em;
+                            font-weight: bold;
+                        ">
+                            {final_total:.2f} {curr}
+                        </span>
 
-                lines.append(
-                    f"🏷️ PRIX TOTAL TTC : "
-                    f"{final_total:.2f} {currency}"
-                )
+                    </div>
+                """)
 
             else:
 
-                lines.append(
-                    "⚠️ PRIX PASSAGERS INCOMPLET"
-                )
+                html.append(f"""
+                    <div style="
+                        background: #fce8e6;
+                        border: 1px solid #fad2cf;
+                        padding: 15px 20px;
+                        border-radius: 6px;
+                        color: #c5221f;
+                        margin-top: 20px;
+                        width: 100%;
+                        box-sizing: border-box;
+                    ">
 
-                lines.append(
-                    "Sabre n'a pas retourné une "
-                    "tarification correspondant "
-                    "à tous les passagers demandés."
-                )
+                        ⚠️ Prix incomplet.
 
-                lines.append(
-                    "Passagers manquants : "
-                    + ", ".join(
-                        validation["missing"]
-                    )
-                )
+                        Manquants :
+                        {", ".join(validation["missing"])}
 
-                lines.append(
-                    f"⚠️ Total global Sabre : "
-                    f"{global_total:.2f} "
-                    f"{currency}"
-                )
+                    </div>
+                """)
 
-                lines.append(
-                    "Ce montant n'est pas présenté "
-                    "comme le prix final de la réservation."
-                )
+            # ========================================================
+            # FIN CARTE OPTION
+            # ========================================================
 
-            lines.append("")
+            html.append("""
+                </div>
+            """)
 
-            lines.append(
-                "--------------------------------------------------"
-            )
+        # ============================================================
+        # FIN CONTENEUR
+        # ============================================================
 
-            lines.append("")
+        html.append("""
+            </div>
+        """)
 
-        return "\n".join(lines)
+        return "".join(html)
 
-    # ============================================================
+    #======================================================
     # RÉCUPÉRATION PNR
     # ============================================================
 

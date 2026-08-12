@@ -81,8 +81,8 @@ class TravelBooking(models.Model):
     preferred_airline_id = fields.Many2one('res.airline', string='Compagnie aérienne préférée')
     preferred_airline_code = fields.Char(string='Code IATA Compagnie', related='preferred_airline_id.iata_code', store=True, readonly=True)
     
-    flight_details = fields.Text(string='Détails du vol (JSON)')
 
+    flight_details = fields.Html(string='Détails du vol', sanitize=False)
     @api.model
     def create(self, vals):
         if vals.get('name', 'Nouveau') == 'Nouveau':

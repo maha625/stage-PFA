@@ -135,7 +135,7 @@
 
                     <notebook>
                         <page string="Réponse Technique API (JSON)">
-                            <field name="flight_details" widget="text" nolabel="1"/>
+                            <field name="flight_details" widget="Html" nolabel="1"/>
                         </page>
                     </notebook>
                 </sheet>

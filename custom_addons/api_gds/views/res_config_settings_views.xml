@@ -33,6 +33,9 @@
                         <setting id="sabre_client_secret_setting" string="Client Secret / Password (Sabre)" help="Clé secrète Sabre">
                             <field name="sabre_client_secret" password="True"/>
                         </setting>
+                        <setting id="sabre_pcc_setting" string="PCC (Sabre)" help="Pseudo City Code ou iPCC attribué par Sabre">
+                            <field name="sabre_pcc"/>
+                        </setting>
                     </block>
 
                     <!-- Paramètres Galileo -->
@@ -76,9 +79,6 @@
         <field name="context">{'module' : 'api_gds'}</field>
     </record>
 
-
-
     <!-- Lien vers le menu de configuration sous la racine -->
-    <menuitem id="menu_gds_config" name="Configuration" parent="menu_gds_root" action="action_api_gds_config" sequence="100"/>
 
 </odoo>

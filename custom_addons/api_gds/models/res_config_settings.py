@@ -20,6 +20,7 @@ class ResConfigSettings(models.TransientModel):
     
     sabre_client_id = fields.Char(string="Client ID (Sabre)", config_parameter='api_gds.sabre_client_id')
     sabre_client_secret = fields.Char(string="Client Secret (Sabre)", config_parameter='api_gds.sabre_client_secret')
+    sabre_pcc = fields.Char(string="PCC (Sabre)", config_parameter='api_gds.sabre_pcc', help="Pseudo City Code ou iPCC Sabre")
 
     # --- Galileo ---
     galileo_environment = fields.Selection([
