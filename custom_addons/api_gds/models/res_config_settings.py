@@ -40,3 +40,10 @@ class ResConfigSettings(models.TransientModel):
         config_parameter='api_gds.api_ninjas_key',
         help="Clé API utilisée pour la recherche d'aéroports externes"
     )
+    siteminder_api_token = fields.Char(string="Token API SiteMinder", config_parameter='api_gds.siteminder_api_token')
+
+    # --- YieldPlanet ---
+    yieldplanet_api_token = fields.Char(string="Token API YieldPlanet", config_parameter='api_gds.yieldplanet_api_token')
+
+    # --- D-EDGE ---
+    dedge_api_token = fields.Char(string="Token API D-EDGE", config_parameter='api_gds.dedge_api_token')

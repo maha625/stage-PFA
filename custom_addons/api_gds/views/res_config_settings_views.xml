@@ -51,7 +51,7 @@
                         </setting>
                     </block>
 
-                    <!-- Autres paramètres -->
+                    <!-- paramètres Hotelbeds -->
                     <block title="Paramètres Hotelbeds / Grossistes Hôteliers">
                         <setting id="hotelbeds_api_key_setting" string="API Key" help="Clé API principale pour Hotelbeds">
                             <field name="hotelbeds_api_key"/>
@@ -60,10 +60,32 @@
                             <field name="hotelbeds_shared_secret" password="True"/>
                         </setting>
                     </block>
-                    
+                    <!-- paramètres API Ninjas -->
                     <block title="Paramètres API Ninjas (Recherche d'Aéroports)">
                         <setting id="api_ninjas_key_setting" string="API Key (API Ninjas)" help="Clé API pour la recherche d'aéroports">
                             <field name="api_ninjas_key" password="True"/>
+                        </setting>
+                    </block>
+                    <!-- Paramètres SiteMinder -->
+                    <block title="Paramètres Globaux SiteMinder">
+                        <setting id="siteminder_api_token_setting" string="Token API SiteMinder">
+                            <field name="siteminder_api_token" password="True"/>
+                        </setting>
+                    </block>
+
+                    <!-- Paramètres YieldPlanet -->
+                    <block title="Paramètres Globaux YieldPlanet">
+                        
+                        <setting id="yieldplanet_api_token_setting" string="Token API YieldPlanet">
+                            <field name="yieldplanet_api_token" password="True"/>
+                        </setting>
+                    </block>
+
+                    <!-- Paramètres D-EDGE -->
+                    <block title="Paramètres Globaux D-EDGE">
+                        
+                        <setting id="dedge_api_token_setting" string="Token API D-EDGE">
+                            <field name="dedge_api_token" password="True"/>
                         </setting>
                     </block>
                 </app>
@@ -79,6 +101,5 @@
         <field name="context">{'module' : 'api_gds'}</field>
     </record>
 
-    <!-- Lien vers le menu de configuration sous la racine -->
 
 </odoo>
