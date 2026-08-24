@@ -8,6 +8,7 @@
     'data': [
         'security/ir.model.access.csv',
         'views/airline_block_views.xml',
+        'views/hotel_stay_views.xml',
     ],
     'installable': True,
     'application': True,

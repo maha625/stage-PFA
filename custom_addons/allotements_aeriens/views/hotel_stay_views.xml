@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vue Formulaire Séjour / Hôtel -->
+    <record id="view_travel_hotel_stay_form" model="ir.ui.view">
+        <field name="name">travel.hotel.stay.form</field>
+        <field name="model">travel.hotel.stay</field>
+        <field name="arch" type="xml">
+            <form string="Contrat / Bloc Hôtel">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Ex: Contrat Été - Hôtel Kenzi Rose"/></h1>
+                    </div>
+                    <group>
+                        <group string="Informations Hôtel">
+                            <field name="hotel_name"/>
+                            <field name="destination"/>
+                            <field name="board_basis"/>
+                        </group>
+                        <group string="Période &amp; Totaux Globaux">
+                            <field name="checkin_date"/>
+                            <field name="checkout_date"/>
+                            <field name="total_rooms_allotted"/>
+                            <field name="total_rooms_sold"/>
+                            <field name="total_rooms_remaining" decoration-danger="total_rooms_remaining &lt; 0"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Répartition par Type de Chambre (Allotment)">
+                            <field name="room_line_ids">
+                                <list editable="bottom">
+                                    <field name="room_type"/>
+                                    <field name="total_allotted"/>
+                                    <field name="rooms_sold"/>
+                                    <field name="rooms_remaining" decoration-danger="rooms_remaining &lt; 0"/>
+                                    <field name="price_unit"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Rooming List (Clients / Passagers)">
+                            <field name="guest_line_ids">
+                                <list editable="bottom">
+                                    <field name="guest_name"/>
+                                    <field name="room_type"/>
+                                    <field name="room_number"/>
+                                    <field name="phone"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vue Liste Séjour -->
+    <record id="view_travel_hotel_stay_tree" model="ir.ui.view">
+        <field name="name">travel.hotel.stay.tree</field>
+        <field name="model">travel.hotel.stay</field>
+        <field name="arch" type="xml">
+            <list string="Gestion des Séjours">
+                <field name="name"/>
+                <field name="hotel_name"/>
+                <field name="destination"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
+                <field name="total_rooms_allotted"/>
+                <field name="total_rooms_remaining"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action et Menu -->
+    <record id="action_travel_hotel_stay" model="ir.actions.act_window">
+        <field name="name">Hôtels &amp; Séjours</field>
+        <field name="res_model">travel.hotel.stay</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_travel_hotel_stay" 
+              name="Hôtels &amp; Séjours" 
+              parent="menu_travel_root" 
+              action="action_travel_hotel_stay" 
+              sequence="20"/>
+</odoo>
