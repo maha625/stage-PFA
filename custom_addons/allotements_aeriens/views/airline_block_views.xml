@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vue Formulaire -->
+    <record id="view_travel_airline_block_form" model="ir.ui.view">
+        <field name="name">travel.airline.block.form</field>
+        <field name="model">travel.airline.block</field>
+        <field name="arch" type="xml">
+            <form string="Bloc-Siège Aérien">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Ex: Bloc Marrakech Été"/></h1>
+                    </div>
+                    <group>
+                        <group string="Détails du Vol">
+                            <field name="airline_name"/>
+                            <field name="flight_number"/>
+                            <field name="departure_date"/>
+                        </group>
+                        <group string="Stocks &amp; Suivi PNR">
+                            <field name="pnr_block"/>
+                            <field name="total_seats"/>
+                            <field name="seats_sold"/>
+                            <field name="seats_option"/>
+                            <field name="seats_remaining" decoration-danger="seats_remaining &lt; 0"/>
+                            <field name="rooming_deadline"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Rooming List (Passagers)">
+                            <field name="passenger_line_ids">
+                                <list editable="bottom">
+                                    <field name="passenger_name"/>
+                                    <field name="passport_number"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vue Liste (Tree) -->
+    <record id="view_travel_airline_block_tree" model="ir.ui.view">
+        <field name="name">travel.airline.block.tree</field>
+        <field name="model">travel.airline.block</field>
+        <field name="arch" type="xml">
+            <list string="Blocs-Sièges">
+                <field name="name"/>
+                <field name="airline_name"/>
+                <field name="flight_number"/>
+                <field name="departure_date"/>
+                <field name="pnr_block"/>
+                <field name="total_seats"/>
+                <field name="seats_remaining"/>
+                <field name="rooming_deadline"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action et Menu -->
+    <record id="action_travel_airline_block" model="ir.actions.act_window">
+        <field name="name">Gestion des Blocs-Sièges</field>
+        <field name="res_model">travel.airline.block</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_travel_root" name="Agence de Voyage"/>
+    <menuitem id="menu_travel_airline_block" 
+              name="Blocs-Sièges &amp; PNR" 
+              parent="menu_travel_root" 
+              action="action_travel_airline_block" 
+              sequence="10"/>
+</odoo>

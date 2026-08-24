@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_travel_airline_block,access.travel.airline.block,model_travel_airline_block,,1,1,1,1
+access_travel_rooming_line,access.travel.rooming.line,model_travel_rooming_line,,1,1,1,1
