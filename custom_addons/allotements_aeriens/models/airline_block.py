@@ -6,7 +6,7 @@ class TravelAirlineBlock(models.Model):
     _description = 'Gestion des Blocs-Sièges et Rooming Lists'
 
     name = fields.Char(string='Référence du Bloc', required=True)
-    airline_name = fields.Char(string='Compagnie Aérienne')
+    airline_id = fields.Many2one('res.airline', string='Compagnie Aérienne')
     flight_number = fields.Char(string='Numéro de Vol')
     departure_date = fields.Datetime(string='Date de Départ')
 

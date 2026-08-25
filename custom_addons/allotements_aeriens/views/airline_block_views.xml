@@ -12,7 +12,7 @@
                     </div>
                     <group>
                         <group string="Détails du Vol">
-                            <field name="airline_name"/>
+                            <field name="airline_id"/>
                             <field name="flight_number"/>
                             <field name="departure_date"/>
                         </group>
@@ -22,7 +22,6 @@
                             <field name="seats_sold"/>
                             <field name="seats_option"/>
                             <field name="seats_remaining" decoration-danger="seats_remaining &lt; 0"/>
-                            <field name="rooming_deadline"/>
                         </group>
                     </group>
                     <notebook>
@@ -48,13 +47,12 @@
         <field name="arch" type="xml">
             <list string="Blocs-Sièges">
                 <field name="name"/>
-                <field name="airline_name"/>
+                <field name="airline_id"/>
                 <field name="flight_number"/>
                 <field name="departure_date"/>
                 <field name="pnr_block"/>
                 <field name="total_seats"/>
                 <field name="seats_remaining"/>
-                <field name="rooming_deadline"/>
             </list>
         </field>
     </record>
@@ -66,7 +64,7 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_travel_root" name="Agence de Voyage"/>
+    <menuitem id="menu_travel_root" name="retrocession &amp; realease dates"/>
     <menuitem id="menu_travel_airline_block" 
               name="Blocs-Sièges &amp; PNR" 
               parent="menu_travel_root" 

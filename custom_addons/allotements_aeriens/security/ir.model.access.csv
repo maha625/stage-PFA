@@ -1,5 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_travel_airline_block,travel.airline.block.access,model_travel_airline_block,,1,1,1,1
+access_travel_rooming_line,travel.rooming.line.access,model_travel_rooming_line,,1,1,1,1
 access_travel_hotel_stay,travel.hotel.stay.access,model_travel_hotel_stay,,1,1,1,1
 access_travel_hotel_room_line,travel.hotel.room.line.access,model_travel_hotel_room_line,,1,1,1,1
 access_travel_hotel_guest,travel.hotel.guest.access,model_travel_hotel_guest,,1,1,1,1
