@@ -8,7 +8,7 @@
             <field name="state">code</field>
             <field name="code">model._action_auto_release_stock()</field>
             <field name="interval_number">1</field>
-            <field name="interval_type">minutes</field>
+            <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
 
@@ -22,7 +22,7 @@
                     <p>Bonjour,</p>
                     <p>Ceci est un rappel automatique concernant le bloc-siège aérien <strong><t t-out="object.name"/></strong>.</p>
                     <ul>
-<li><strong>Compagnie :</strong> <t t-out="object.airline_id.display_name"/></li>                        <li><strong>Date de Départ :</strong> <t t-out="object.departure_date"/></li>
+                        <li><strong>Compagnie :</strong> <t t-out="object.airline_id.display_name"/></li>                        <li><strong>Date de Départ :</strong> <t t-out="object.departure_date"/></li>
                         <li><strong>Sièges Totaux :</strong> <t t-out="object.total_seats"/></li>
                         <li><strong>Sièges Restants (Non vendus) :</strong> <t t-out="object.seats_remaining"/></li>
                         <li><strong>Date limite de Release (Cut-Off) :</strong> <span style="color: red; font-weight: bold;"><t t-out="object.release_date"/></span></li>

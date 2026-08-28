@@ -99,8 +99,6 @@ class TravelHotelStay(models.Model):
             mail = self.env['mail.mail'].create(mail_values)
             mail.send(auto_commit=True)
             
-            # 2. Cocher explicitement le champ 'is_released'
-            contract.write({'is_released': True})
             
             # 3. Trace unique dans le chatter de la fiche
             contract.message_post(
