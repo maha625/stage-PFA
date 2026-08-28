@@ -4,7 +4,7 @@
     'category': 'Industries',
     'summary': 'Gestion des allotrements aériens, PNR blocs et rooming lists pour agence de voyage',
     'author': 'Maha El Allam',
-    'depends': ['base', 'CONNECTIVITÉ_GDS_AÉRIEN', 'mail', 'account', 'sale_management'],
+    'depends': ['base', 'CONNECTIVITÉ_GDS_AÉRIEN', 'mail', 'account', 'sale_management','api_gds'],
     'data': [
         'security/ir.model.access.csv',
         'views/airline_block_views.xml',

@@ -73,4 +73,5 @@
               parent="menu_travel_root" 
               action="action_travel_airline_block" 
               sequence="10"/>
+    
 </odoo>

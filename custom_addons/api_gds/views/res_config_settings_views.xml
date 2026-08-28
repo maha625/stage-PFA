@@ -88,6 +88,12 @@
                             <field name="dedge_api_token" password="True"/>
                         </setting>
                     </block>
+                    <!-- Paramètres des Notifications / Alertes -->
+                    <block title="Paramètres des Notifications et Alertes">
+                        <setting id="alert_email_setting" string="E-mail des Alertes Rétrocession" help="Adresse destinataire des notifications automatiques J-21">
+                            <field name="alert_email"/>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>

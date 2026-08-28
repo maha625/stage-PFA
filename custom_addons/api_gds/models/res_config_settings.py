@@ -47,3 +47,9 @@ class ResConfigSettings(models.TransientModel):
 
     # --- D-EDGE ---
     dedge_api_token = fields.Char(string="Token API D-EDGE", config_parameter='api_gds.dedge_api_token')
+    # --- Paramètre d'alerte e-mail global ---
+    alert_email = fields.Char(
+        string="E-mail d'alerte par défaut (Rétrocession)", 
+        config_parameter='api_gds.alert_email',
+        help="Adresse e-mail utilisée par défaut pour les alertes automatiques de stock"
+    )

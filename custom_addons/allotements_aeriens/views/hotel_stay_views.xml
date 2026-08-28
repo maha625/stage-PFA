@@ -86,4 +86,11 @@
               parent="menu_travel_root" 
               action="action_travel_hotel_stay" 
               sequence="20"/>
+    <!-- Menu de Configuration GDS -->
+    <menuitem id="menu_gds_config" 
+              name="Configuration" 
+              parent="menu_travel_root" 
+              action="api_gds.action_api_gds_config" 
+              sequence="100"/>
+
 </odoo>

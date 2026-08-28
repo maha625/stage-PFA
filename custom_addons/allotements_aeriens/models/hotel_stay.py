@@ -64,10 +64,18 @@ class TravelHotelStay(models.Model):
         ]
         contracts_to_release = self.search(domain)
         
-        target_email = "mahaelallam834@gmail.com"
-        
+        # Récupération dynamique d'une adresse de secours depuis les paramètres système d'Odoo, ou valeur par défaut
+        default_email = self.env['ir.config_parameter'].sudo().get_param('api_gds.alert_email')        
+        # Récupérer l'e-mail configuré dans le serveur sortant d'Odoo pour éviter les rejets SMTP
+        mail_server = self.env['ir.mail_server'].sudo().search([], limit=1)
+        sender_email = mail_server.smtp_user if mail_server else default_email
+
         for contract in contracts_to_release:
-            # 1. Envoi de l'e-mail unique d'alerte
+            # Si vous ajoutez un champ 'hotel_email' sur le modèle, vous pouvez utiliser contract.hotel_email
+            # Sinon, on utilise l'e-mail par défaut ou un e-mail lié
+            target_email = getattr(contract, 'hotel_email', False) or default_email
+
+            # 1. Envoi de l'e-mail unique d'alerte avec 'email_from' explicite
             mail_values = {
                 'subject': f"[ALERTE RÉTROCESSION J-21] - {contract.name} ({contract.hotel_name})",
                 'body_html': f"""
@@ -83,18 +91,22 @@ class TravelHotelStay(models.Model):
                         <p>Le statut du contrat a été automatiquement basculé en <b>Rétrocédé</b> et aucune autre relance ne sera envoyée.</p>
                     </div>
                 """,
+                'email_from': sender_email,
                 'email_to': target_email,
             }
-            mail = self.env['mail.mail'].create(mail_values)
-            mail.send()
             
-            # 2. Cocher explicitement le champ 'is_released' APRES l'envoi de l'e-mail
+            # Création et envoi
+            mail = self.env['mail.mail'].create(mail_values)
+            mail.send(auto_commit=True)
+            
+            # 2. Cocher explicitement le champ 'is_released'
             contract.write({'is_released': True})
             
             # 3. Trace unique dans le chatter de la fiche
             contract.message_post(
                 body=f"Rétrocession automatique J-21 effectuée : {contract.total_rooms_remaining} chambres non vendues restituées. E-mail d'alerte unique envoyé à {target_email}."
             )
+
 
 class TravelHotelRoomLine(models.Model):
     _name = 'travel.hotel.room.line'
