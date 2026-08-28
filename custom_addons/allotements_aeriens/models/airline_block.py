@@ -1,3 +1,4 @@
+from datetime import timedelta
 from odoo import api, fields, models
 
 
@@ -21,20 +22,18 @@ class TravelAirlineBlock(models.Model):
     passenger_line_ids = fields.One2many(
         'travel.rooming.line', 'block_id', string='Rooming List (Passagers)'
     )
-    release_delay = fields.Integer(string="Délai Release (Jours)", default=21, help="Ex: 21 jours avant le départ")
+    release_delay = fields.Integer(string="Délai Release (Jours)", default=21, help="Ex: 21 jours")
     release_date = fields.Datetime(string="Date de Release (Cut-Off)", compute='_compute_release_date', store=True)
     is_released = fields.Boolean(string="Rétrocédé", default=False, help="Indique si le stock non vendu a été restitué")
 
-
     @api.depends('departure_date', 'release_delay')
     def _compute_release_date(self):
-        from datetime import timedelta
         for record in self:
             if record.departure_date and record.release_delay:
+                # Calcul : Date de départ + Délai release
                 record.release_date = record.departure_date - timedelta(days=record.release_delay)
             else:
                 record.release_date = False
-
 
     @api.depends('total_seats', 'passenger_line_ids.state')
     def _compute_seats_status(self):
@@ -45,6 +44,32 @@ class TravelAirlineBlock(models.Model):
             record.seats_option = option
             record.seats_remaining = record.total_seats - sold - option
 
+    def _cron_send_release_alerts(self):
+        """Tâche planifiée : Envoie un e-mail d'alerte pour les blocs non rétrocédés"""
+        print("--- DEBUT CRON AIRLINE ALERTS ---")
+        
+        # 1. Vérifions si le paramètre e-mail existe
+        alert_email = self.env['ir.config_parameter'].sudo().get_param('api_gds.alert_email')
+        print(f"1. Email de destination configuré : {alert_email}")
+        if not alert_email:
+            return
+
+        # 2. Vérifions si le template existe en base
+        template = self.env.ref('allotements_aeriens.email_template_airline_block_alert', raise_if_not_found=False)
+        print(f"2. Template trouvé : {template}")
+        if not template:
+            return
+
+        # 3. Récupérons les blocs
+        blocks = self.search([('is_released', '=', False)])
+        print(f"3. Nombre de blocs trouvés : {len(blocks)}")
+
+        for block in blocks:
+            print(f"-> Tentative d'envoi pour le bloc : {block.name}")
+            template.send_mail(block.id, force_send=True, email_values={'email_to': alert_email})
+            print(f"-> E-mail envoyé avec succès pour {block.name}")
+        
+        print("--- FIN CRON AIRLINE ALERTS ---")
 
 class TravelRoomingLine(models.Model):
     _name = 'travel.rooming.line'

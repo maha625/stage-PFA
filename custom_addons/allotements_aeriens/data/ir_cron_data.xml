@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
+        <!-- Cron existant pour les séjours hôtel -->
         <record id="ir_cron_auto_release_hotel_stay" model="ir.cron">
             <field name="name">Séjours Hôtel : Rétrocession automatique J-21</field>
             <field name="model_id" ref="model_travel_hotel_stay"/>
@@ -8,6 +9,39 @@
             <field name="code">model._action_auto_release_stock()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Nouveau modèle d'e-mail pour l'alerte des blocs aériens -->
+        <record id="email_template_airline_block_alert" model="mail.template">
+            <field name="name">Bloc Aérien : Alerte Rétrocession / Release J-21</field>
+            <field name="model_id" ref="model_travel_airline_block"/>
+            <field name="subject">Alerte Release - Bloc Aérien : {{ object.name }} (Vol {{ object.flight_number }})</field>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px; font-size: 13px;">
+                    <p>Bonjour,</p>
+                    <p>Ceci est un rappel automatique concernant le bloc-siège aérien <strong><t t-out="object.name"/></strong>.</p>
+                    <ul>
+<li><strong>Compagnie :</strong> <t t-out="object.airline_id.display_name"/></li>                        <li><strong>Date de Départ :</strong> <t t-out="object.departure_date"/></li>
+                        <li><strong>Sièges Totaux :</strong> <t t-out="object.total_seats"/></li>
+                        <li><strong>Sièges Restants (Non vendus) :</strong> <t t-out="object.seats_remaining"/></li>
+                        <li><strong>Date limite de Release (Cut-Off) :</strong> <span style="color: red; font-weight: bold;"><t t-out="object.release_date"/></span></li>
+                    </ul>
+                    <p>Veuillez procéder à la rétrocession des sièges invendus si nécessaire avant la date limite.</p>
+                    <p>Cordialement,</p>
+                    <p><em>Système de Gestion - Agence de Voyage</em></p>
+                </div>
+            </field>
+        </record>
+
+        <!-- Nouveau Cron pour la vérification des blocs aériens -->
+        <record id="ir_cron_airline_block_release_alert" model="ir.cron">
+            <field name="name">Aviation : Vérification des dates de release des blocs (J-21)</field>
+            <field name="model_id" ref="model_travel_airline_block"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_send_release_alerts()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
     </data>

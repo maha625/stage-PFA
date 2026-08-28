@@ -67,11 +67,10 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_travel_root" name="retrocession &amp; realease dates"/>
+    <menuitem id="menu_travel_root" name="retrocession &amp; release dates"/>
     <menuitem id="menu_travel_airline_block" 
               name="Blocs-Sièges &amp; PNR" 
               parent="menu_travel_root" 
               action="action_travel_airline_block" 
               sequence="10"/>
-    
 </odoo>
