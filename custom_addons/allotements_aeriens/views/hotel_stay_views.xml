@@ -19,6 +19,9 @@
                         <group string="Période &amp; Totaux Globaux">
                             <field name="checkin_date"/>
                             <field name="checkout_date"/>
+                            <field name="release_delay"/>
+                            <field name="release_date"/>
+                            <field name="is_released" widget="boolean_toggle"/>
                             <field name="total_rooms_allotted"/>
                             <field name="total_rooms_sold"/>
                             <field name="total_rooms_remaining" decoration-danger="total_rooms_remaining &lt; 0"/>
@@ -63,6 +66,8 @@
                 <field name="destination"/>
                 <field name="checkin_date"/>
                 <field name="checkout_date"/>
+                <field name="release_date"/>
+                <field name="is_released" widget="boolean_toggle"/>
                 <field name="total_rooms_allotted"/>
                 <field name="total_rooms_remaining"/>
             </list>

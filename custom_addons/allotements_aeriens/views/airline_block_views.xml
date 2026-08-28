@@ -22,6 +22,9 @@
                             <field name="seats_sold"/>
                             <field name="seats_option"/>
                             <field name="seats_remaining" decoration-danger="seats_remaining &lt; 0"/>
+                            <field name="release_delay"/>
+                            <field name="release_date"/>
+                            <field name="is_released" widget="boolean_toggle"/>
                         </group>
                     </group>
                     <notebook>

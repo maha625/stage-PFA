@@ -1,8 +1,10 @@
 from odoo import models, fields, api
+from datetime import timedelta
 
 class TravelHotelStay(models.Model):
     _name = 'travel.hotel.stay'
     _description = 'Gestion des Séjours et Blocs Hôtels'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string='Référence du Séjour / Contrat', required=True)
     hotel_name = fields.Char(string="Nom de l'Hôtel", required=True)
@@ -27,6 +29,20 @@ class TravelHotelStay(models.Model):
     total_rooms_sold = fields.Integer(string='Total Chambres Vendues', compute='_compute_global_totals', store=True)
     total_rooms_remaining = fields.Integer(string='Total Chambres Restantes', compute='_compute_global_totals', store=True)
 
+    # Champs de release et rétrocession
+    release_delay = fields.Integer(string="Délai Release (Jours)", default=21, help="Ex: J-21 avant le check-in")
+    release_date = fields.Date(string="Date de Release (Cut-Off)", compute='_compute_release_date', store=True)
+    is_released = fields.Boolean(string="Rétrocédé", default=False)
+
+    @api.depends('checkin_date', 'release_delay')
+    def _compute_release_date(self):
+        for record in self:
+            if record.checkin_date and record.release_delay is not None:
+                date_obj = fields.Date.from_string(record.checkin_date)
+                record.release_date = date_obj - timedelta(days=record.release_delay)
+            else:
+                record.release_date = False
+
     @api.depends('room_line_ids.total_allotted', 'room_line_ids.rooms_sold')
     def _compute_global_totals(self):
         for record in self:
@@ -36,6 +52,49 @@ class TravelHotelStay(models.Model):
             record.total_rooms_sold = sold
             record.total_rooms_remaining = allotted - sold
 
+    @api.model
+    def _action_auto_release_stock(self):
+        """Action planifiée : exécute la rétrocession, envoie l'alerte unique et coche 'is_released'"""
+        today = fields.Date.today()
+        
+        domain = [
+            ('is_released', '=', False),
+            ('release_date', '<=', today),
+            ('total_rooms_remaining', '>', 0)
+        ]
+        contracts_to_release = self.search(domain)
+        
+        target_email = "mahaelallam834@gmail.com"
+        
+        for contract in contracts_to_release:
+            # 1. Envoi de l'e-mail unique d'alerte
+            mail_values = {
+                'subject': f"[ALERTE RÉTROCESSION J-21] - {contract.name} ({contract.hotel_name})",
+                'body_html': f"""
+                    <div style="font-family: Arial, sans-serif; padding: 15px; border: 1px solid #ddd;">
+                        <h2 style="color: #d9534f;">Alerte Rétrocession Automatique (J-21)</h2>
+                        <p>Bonjour,</p>
+                        <p>Le contrat de séjour <b>{contract.name}</b> pour l'hôtel <b>{contract.hotel_name}</b> a atteint sa date de release (Cut-Off).</p>
+                        <ul>
+                            <li><b>Date d'arrivée :</b> {contract.checkin_date}</li>
+                            <li><b>Date de Release :</b> {contract.release_date}</li>
+                            <li><b>Chambres non vendues rétrocédées :</b> <span style="color: red; font-weight: bold;">{contract.total_rooms_remaining} chambres</span></li>
+                        </ul>
+                        <p>Le statut du contrat a été automatiquement basculé en <b>Rétrocédé</b> et aucune autre relance ne sera envoyée.</p>
+                    </div>
+                """,
+                'email_to': target_email,
+            }
+            mail = self.env['mail.mail'].create(mail_values)
+            mail.send()
+            
+            # 2. Cocher explicitement le champ 'is_released' APRES l'envoi de l'e-mail
+            contract.write({'is_released': True})
+            
+            # 3. Trace unique dans le chatter de la fiche
+            contract.message_post(
+                body=f"Rétrocession automatique J-21 effectuée : {contract.total_rooms_remaining} chambres non vendues restituées. E-mail d'alerte unique envoyé à {target_email}."
+            )
 
 class TravelHotelRoomLine(models.Model):
     _name = 'travel.hotel.room.line'
@@ -52,9 +111,7 @@ class TravelHotelRoomLine(models.Model):
     ], string='Type de Chambre', default='double', required=True)
     
     total_allotted = fields.Integer(string='Allotment (Acheté)', required=True, default=1)
-    rooms_sold = fields.Integer(
-        string='Vendues', compute='_compute_rooms_sold', store=True
-    )
+    rooms_sold = fields.Integer(string='Vendues', compute='_compute_rooms_sold', store=True)
     rooms_remaining = fields.Integer(string='Restantes', compute='_compute_room_line_remaining', store=True)
     
     price_unit = fields.Float(string='Prix Achat / Nuit')

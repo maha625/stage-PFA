@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_auto_release_hotel_stay" model="ir.cron">
+            <field name="name">Séjours Hôtel : Rétrocession automatique J-21</field>
+            <field name="model_id" ref="model_travel_hotel_stay"/>
+            <field name="state">code</field>
+            <field name="code">model._action_auto_release_stock()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

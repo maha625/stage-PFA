@@ -21,6 +21,20 @@ class TravelAirlineBlock(models.Model):
     passenger_line_ids = fields.One2many(
         'travel.rooming.line', 'block_id', string='Rooming List (Passagers)'
     )
+    release_delay = fields.Integer(string="Délai Release (Jours)", default=21, help="Ex: 21 jours avant le départ")
+    release_date = fields.Datetime(string="Date de Release (Cut-Off)", compute='_compute_release_date', store=True)
+    is_released = fields.Boolean(string="Rétrocédé", default=False, help="Indique si le stock non vendu a été restitué")
+
+
+    @api.depends('departure_date', 'release_delay')
+    def _compute_release_date(self):
+        from datetime import timedelta
+        for record in self:
+            if record.departure_date and record.release_delay:
+                record.release_date = record.departure_date - timedelta(days=record.release_delay)
+            else:
+                record.release_date = False
+
 
     @api.depends('total_seats', 'passenger_line_ids.state')
     def _compute_seats_status(self):
