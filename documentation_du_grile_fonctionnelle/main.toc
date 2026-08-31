@@ -1,0 +1,43 @@
+\babel@toc {french}{}\relax 
+\contentsline {chapter}{Introduction Générale}{3}{chapter*.2}%
+\contentsline {chapter}{\numberline {1}Contexte de la tâche}{4}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Présentation du besoin}{4}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Objectifs}{4}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Résultat attendu}{5}{section.1.3}%
+\contentsline {chapter}{\numberline {2}Prérequis}{6}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Logiciels nécessaires}{6}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Technologies utilisées}{6}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Configuration requise}{6}{section.2.3}%
+\contentsline {chapter}{\numberline {3}Module CRM}{8}{chapter.3}%
+\contentsline {section}{\numberline {3.1}GESTION DES PROSPECTS \& DEMANDES}{8}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}Capture automatique des demandes de devis de voyage depuis le site internet}{8}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}Qualification des préférences de voyage des prospects}{13}{subsection.3.1.2}%
+\contentsline {section}{\numberline {3.2}PLANIFICATION D'ACTIVITÉS}{17}{section.3.2}%
+\contentsline {section}{\numberline {3.3}REPORTING COMMERCIAL}{20}{section.3.3}%
+\contentsline {chapter}{\numberline {4}Module VENTE}{24}{chapter.4}%
+\contentsline {section}{\numberline {4.1}CRÉATION DE DEVIS}{24}{section.4.1}%
+\contentsline {section}{\numberline {4.2}RÈGLEMENTS \& FACTURES D'ACOMPTES}{30}{section.4.2}%
+\contentsline {chapter}{\numberline {5}Module FACTURATION}{37}{chapter.5}%
+\contentsline {section}{\numberline {5.1}FACTURATION CLIENTS}{37}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}Création de factures adaptées au secteur avec TVA sur la marge bénéficiaire (Régime fiscal des agences de voyage). }{37}{subsection.5.1.1}%
+\contentsline {chapter}{\numberline {6}Module ACHAT}{41}{chapter.6}%
+\contentsline {section}{\numberline {6.1}GESTION DES PRESTATAIRES}{41}{section.6.1}%
+\contentsline {section}{\numberline {6.2}COMMANDES DE PRESTATIONS}{42}{section.6.2}%
+\contentsline {section}{\numberline {6.3}CONTRÔLE DES COÛTS}{45}{section.6.3}%
+\contentsline {chapter}{\numberline {7}Module DOSSIER DE VOYAGE}{50}{chapter.7}%
+\contentsline {section}{\numberline {7.1}LOGISTIQUE CLIENT}{50}{section.7.1}%
+\contentsline {section}{\numberline {7.2}SUIVI ADMINISTRATIF}{56}{section.7.2}%
+\contentsline {section}{\numberline {7.3}GESTION DOCUMENTAIRE}{61}{section.7.3}%
+\contentsline {chapter}{\numberline {8}Module SITE WEB}{65}{chapter.8}%
+\contentsline {section}{\numberline {8.1}PRÉSENTATION DE L'OFFRE}{65}{section.8.1}%
+\contentsline {section}{\numberline {8.2}VENTE DIRECTE EN LIGNE}{69}{section.8.2}%
+\contentsline {section}{\numberline {8.3}ESPACE CLIENT}{72}{section.8.3}%
+\contentsline {chapter}{\numberline {9}Module RESSOURCE HUMAINE}{74}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Gestion des accompagnateurs}{74}{section.9.1}%
+\contentsline {subsection}{\numberline {9.1.1}Planification des activités}{74}{subsection.9.1.1}%
+\contentsline {subsection}{\numberline {9.1.2}Gestion des congés}{76}{subsection.9.1.2}%
+\contentsline {section}{\numberline {9.2}Gestion des notes de frais terrain}{78}{section.9.2}%
+\contentsline {subsection}{\numberline {9.2.1}Création d'une note de frais}{78}{subsection.9.2.1}%
+\contentsline {subsection}{\numberline {9.2.2}Saisie des informations de la dépense}{79}{subsection.9.2.2}%
+\contentsline {subsection}{\numberline {9.2.3}Validation et remboursement}{80}{subsection.9.2.3}%
+\contentsline {chapter}{Conclusion Générale}{81}{chapter*.4}%
