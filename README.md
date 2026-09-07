@@ -309,7 +309,7 @@ refactor: amélioration du module de connectivité
 # 👩‍💻 Projet réalisé dans le cadre du PFA
 
 **Projet de Fin d'Année (PFA)**  
-**Cycle Ingénieur — Informatique et Systèmes Intelligents**  
+**Cycle Ingénieur — Génie Informatique : Ingénierie Logicielle et Systèmes Intelligents**  
 **ENSAM Meknès**
 
 **Thématique :** Intégration et développement d'une solution ERP Odoo pour les activités liées au voyage, à l'aérien et à l'hôtellerie.
